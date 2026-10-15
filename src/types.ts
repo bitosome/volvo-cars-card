@@ -40,7 +40,7 @@ export type ImageSize = typeof IMAGE_SIZES[number];
 /** Thumbnail heights; the width follows the cars' 16:9 pictures. */
 export const IMAGE_HEIGHTS: Record<ImageSize, number> = { small: 54, medium: 72, large: 90 };
 /** Banner heights for the same presets: the picture leads, so the scale is larger. */
-export const BANNER_HEIGHTS: Record<ImageSize, number> = { small: 140, medium: 180, large: 230 };
+export const BANNER_HEIGHTS: Record<ImageSize, number> = { small: 130, medium: 160, large: 210 };
 export const ASPECT = 16 / 9;
 
 export function imageSize(height: number): { width: number; height: number } {
@@ -59,7 +59,7 @@ export interface VolvoCardConfig {
   /** Picture URL. Defaults to the picture of `image_entity`, then the car's tracker. */
   image?: string;
   image_entity?: string;
-  /** Picture size preset. Compact: 96x54 / 128x72 / 160x90. Banner: 140 / 180 / 230 tall. */
+  /** Picture size preset. Compact: 96x54 / 128x72 / 160x90. Banner: 130 / 160 / 210 tall. */
   image_size?: ImageSize;
   /** Explicit picture height in pixels, overriding `image_size`. */
   image_height?: number;

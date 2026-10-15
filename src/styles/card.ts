@@ -92,40 +92,35 @@ export const cardStyles = css`
   .item ha-icon { width: 18px; height: 18px; --mdc-icon-size: 18px; flex-basis: 18px; color: var(--status-warn-color); }
   .item.charge ha-icon { color: var(--status-alert-color); }
   .item span { overflow-wrap: anywhere; }
-  /* ---- banner layout: the picture leads, information sits on a scrim ---- */
+  /* ---- banner layout: a clean picture over one information band ---- */
   .banner { padding: 0; overflow: hidden; }
-  .banner-media { position: relative; display: block; width: 100%; height: var(--banner-h, 180px); background: color-mix(in srgb,var(--primary-text-color) 6%,transparent); }
-  .banner-media.empty { height: auto; min-height: 104px; }
+  .banner-media { position: relative; display: block; width: 100%; height: var(--banner-h, 160px); background: color-mix(in srgb,var(--primary-text-color) 6%,transparent); }
   .banner-media img { width: 100%; height: 100%; object-fit: cover; display: block; }
-  .banner-scrim { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: space-between; gap: 8px; padding: 12px 14px; background: linear-gradient(180deg, rgba(0,0,0,.44) 0%, rgba(0,0,0,.06) 40%, rgba(0,0,0,.62) 100%); }
-  .banner-media.empty .banner-scrim { position: static; background: none; }
-  .banner-top { display: flex; align-items: flex-start; gap: 10px; }
-  .banner-top .identity-text { flex: 1; min-width: 0; }
-  .banner-top .name { color: #fff; text-shadow: 0 1px 10px rgba(0,0,0,.5); }
-  .banner-top .eyebrow { color: rgba(255,255,255,.78); }
-  .banner-bottom { display: grid; gap: 6px; }
-  .banner-figures { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
-  .banner-value { font-size: clamp(26px,7cqw,32px); font-weight: 680; letter-spacing: -.03em; font-variant-numeric: tabular-nums; line-height: 1; color: #fff; text-shadow: 0 1px 10px rgba(0,0,0,.5); }
-  .banner-value .figure-unit { font-size: 14px; }
-  .banner-range { font-size: 12.5px; color: rgba(255,255,255,.9); font-variant-numeric: tabular-nums; white-space: nowrap; text-shadow: 0 1px 8px rgba(0,0,0,.5); }
-  .banner-level { position: relative; height: 4px; width: 100%; max-width: 260px; border-radius: 999px; overflow: hidden; background: rgba(255,255,255,.28); }
-  .banner-level > span { display: block; height: 100%; border-radius: inherit; background: #fff; transition: width .3s; }
-  .banner-level.target { position: absolute; top: 0; bottom: 0; width: 2px; background: rgba(0,0,0,.45); }
-  .banner-media.empty .banner-value, .banner-media.empty .banner-range { color: var(--primary-text-color); text-shadow: none; }
-  .banner-media.empty .name { color: var(--primary-text-color); text-shadow: none; }
-  .banner-media.empty .eyebrow { color: var(--car-muted); }
-  .banner-media.empty .banner-level { background: color-mix(in srgb,var(--primary-text-color) 14%,transparent); }
-  .banner-media.empty .banner-level > span { background: var(--car-accent); }
-  .banner .chips { justify-content: flex-start; }
-  .banner-note { margin: 0; font-size: 12px; line-height: 1.4; color: rgba(255,255,255,.92); text-shadow: 0 1px 8px rgba(0,0,0,.5); overflow-wrap: anywhere; }
-  .banner-note.warn { color: #ffd08a; }
-  .banner-note.alert { color: #ffb3ae; }
-  .banner-media.empty .banner-note { color: var(--car-muted); text-shadow: none; }
-  .banner-media.empty .banner-note.warn { color: color-mix(in srgb,var(--status-warn-color) 74%,var(--primary-text-color) 26%); }
-  .banner-media.empty .banner-note.alert { color: color-mix(in srgb,var(--status-alert-color) 76%,var(--primary-text-color) 24%); }
-  .banner .lock-pill { border-color: rgba(255,255,255,.34); background: rgba(0,0,0,.32); color: #fff; }
-  .banner .lock-pill.unlocked { color: #ffb3ae; border-color: rgba(229,57,53,.7); }
-  .banner .disclosure { border-color: rgba(255,255,255,.34); background: rgba(0,0,0,.32); color: #fff; }
+  /* Nothing is written on the car: only enough of an edge for the band to separate. */
+  .banner-fade { position: absolute; inset: auto 0 0; height: 40%; background: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,.22) 100%); pointer-events: none; }
+  .banner-band { display: flex; align-items: center; gap: 8px; min-height: 56px; padding: 8px 6px 8px 14px; }
+  .band-identity { display: grid; gap: 4px; min-width: 0; flex: 1; padding: 0; border: 0; background: transparent; text-align: left; }
+  .band-name { font-size: 15px; font-weight: 600; letter-spacing: -.015em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .band-figures { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .band-value { font-size: 21px; font-weight: 680; letter-spacing: -.03em; line-height: 1; font-variant-numeric: tabular-nums; flex: 0 0 auto; }
+  .band-value .figure-unit { font-size: 12px; }
+  .band-level { position: relative; flex: 1 1 60px; min-width: 48px; max-width: 200px; height: 3px; border-radius: 999px; background: color-mix(in srgb,var(--primary-text-color) 13%,transparent); }
+  .band-level > span { display: block; height: 100%; border-radius: inherit; background: var(--car-accent); transition: width .3s; }
+  .band-level.target { position: absolute; top: 0; bottom: 0; width: 2px; background: color-mix(in srgb,var(--primary-text-color) 55%,transparent); }
+  .band-range { font-size: 12px; color: var(--car-muted); font-variant-numeric: tabular-nums; white-space: nowrap; flex: 0 0 auto; }
+  .band-status { display: inline-flex; align-items: center; gap: 4px; padding: 4px 9px; border-radius: var(--chip-border-radius); font-size: 11.5px; font-weight: 600; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 40%; color: var(--car-muted); background: color-mix(in srgb,var(--primary-text-color,#ddd) 7%,transparent); }
+  .band-status ha-icon { width: 14px; height: 14px; --mdc-icon-size: 14px; flex-basis: 14px; }
+  .band-status.warn { color: color-mix(in srgb,var(--status-warn-color) 74%,var(--primary-text-color) 26%); background: color-mix(in srgb,var(--status-warn-color) 15%,transparent); }
+  .band-status.alert { color: color-mix(in srgb,var(--status-alert-color) 76%,var(--primary-text-color) 24%); background: color-mix(in srgb,var(--status-alert-color) 15%,transparent); }
+  /* Light controls: no ring, a generous hit area. */
+  .banner-band .lock-pill, .banner-band .disclosure { width: 40px; height: 40px; border: 0; background: transparent; color: var(--car-muted); }
+  .banner-band .lock-pill:hover, .banner-band .disclosure:hover { background: color-mix(in srgb,var(--primary-text-color) 7%,transparent); }
+  .banner-band .lock-pill { color: var(--primary-text-color); }
+  .banner-band .lock-pill.unlocked { color: color-mix(in srgb,var(--switch-lock-unlocked-color,#e53935) 80%,var(--primary-text-color) 20%); }
+  .banner-band .lock-pill.alert { color: var(--status-alert-color); }
+  .banner-line { margin: 0; padding: 0 14px 9px; font-size: 12px; line-height: 1.45; color: var(--car-muted); overflow-wrap: anywhere; }
+  .banner-line.warn { color: color-mix(in srgb,var(--status-warn-color) 76%,var(--primary-text-color) 24%); }
+  .banner-line.alert { color: color-mix(in srgb,var(--status-alert-color) 78%,var(--primary-text-color) 22%); }
 
   /* ---- compact layout: one dense status row ---- */
   /* Thumbnail, identity and controls share the first line; chips get a full-width

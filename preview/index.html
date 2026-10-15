@@ -21,6 +21,7 @@
 <body>
 <div class="frame"><h2>banner · live EX30: cable in, port open (expected), the car reports a charging fault</h2><volvo-cars-card id="ex30"></volvo-cars-card><p class="measure" id="m-ex30"></p></div>
 <div class="frame"><h2>banner · live XC40: cable in while the port sensor says closed — no nag, and the detail tile says so</h2><volvo-cars-card id="xc40"></volvo-cars-card><p class="measure" id="m-xc40"></p></div>
+<div class="frame"><h2>banner · one opening: the amber phrase alone, no line</h2><volvo-cars-card id="open"></volvo-cars-card><p class="measure" id="m-open"></p></div>
 <div class="frame"><h2>banner · the quiet case: unplugged with everything shut</h2><volvo-cars-card id="quiet"></volvo-cars-card><p class="measure" id="m-quiet"></p></div>
 <div class="frame"><h2>compact · live EX30</h2><volvo-cars-card id="compact"></volvo-cars-card><p class="measure" id="m-compact"></p></div>
 <div class="frame"><h2>full · live EX30 (the hero layout)</h2><volvo-cars-card id="full"></volvo-cars-card><p class="measure" id="m-full"></p></div>
@@ -99,6 +100,7 @@
   const cards = [
     ['ex30', { car: 'ex30', name: 'Volvo EX30', image: IMAGES.ex30 }, states],
     ['xc40', { car: 'xc40', name: 'Volvo XC40', image: IMAGES.xc40 }, states],
+    ['open', { car: 'xc40', name: 'Volvo XC40', image: IMAGES.xc40 }, { ...quiet, 'binary_sensor.volvo_xc40_tank_lid': entity('on') }],
     ['quiet', { car: 'xc40', name: 'Volvo XC40', image: IMAGES.xc40 }, quiet],
     ['compact', { car: 'ex30', name: 'Volvo EX30', layout: 'compact', image: IMAGES.ex30 }, states],
     ['full', { car: 'ex30', name: 'Volvo EX30', layout: 'full', image: IMAGES.ex30 }, states],
@@ -122,8 +124,8 @@
       const target = document.getElementById(`m-${id}`);
       const box = media ?? row ?? card.shadowRoot.querySelector('.hero');
       if (box && target) {
-        const kind = media ? 'banner' : row ? 'compact row' : 'hero';
-        target.textContent = `${kind}: ${Math.round(box.getBoundingClientRect().height)} px tall at ${Math.round(card.getBoundingClientRect().width)} px wide`;
+        const kind = media ? `banner (${Math.round(media.getBoundingClientRect().height)} px picture)` : row ? 'compact row' : 'hero';
+        target.textContent = `${kind}: ${Math.round(card.getBoundingClientRect().height)} px card at ${Math.round(card.getBoundingClientRect().width)} px wide`;
       }
     }
   };

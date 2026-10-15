@@ -1,18 +1,18 @@
 # One card per car. Every entity is derived from the car key, so `car` is the only
-# required option. The default layout is the banner: the picture leads at 180px tall
-# with the name, battery, range, lock and chips on a scrim.
+# required option. The default layout is the banner: a clean 160px picture with one
+# information band underneath, and a single status phrase instead of chip stacks.
 type: custom:volvo-cars-card
 car: ex30
 name: Volvo EX30
 image: /api/image/serve/f31713098a298d1775d4b2e181ddfccd/original
 ---
-# A taller or shorter banner: image_height in pixels (32-260), or image_size
-# small / medium / large, which is 140 / 180 / 230 tall in this layout.
+# A taller or shorter banner picture: image_height in pixels (32-260), or image_size
+# small / medium / large, which is 130 / 160 / 210 tall in this layout.
 type: custom:volvo-cars-card
 car: xc40
 name: Volvo XC40
 image: /api/image/serve/cfc5e4693a59de8d2a662b2391509297/original
-image_height: 230
+image_height: 210
 show: [charging, openings, odometer, actions]
 ---
 # The dense row: 92px, one line, everything else behind the chevron.

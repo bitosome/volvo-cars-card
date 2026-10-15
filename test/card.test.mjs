@@ -247,14 +247,14 @@ test('chips appear only when they carry information', async () => {
   }) });
   assert.match(root(plugged.card).querySelector('.chip').textContent, /Plugged/);
 
-  const charging = await fixture({ state: states('ex30', {
+  const charging = await fixture({ config: COMPACT, state: states('ex30', {
     'sensor.volvo_ex30_charging_connection_status': entity('connected'),
     'sensor.volvo_ex30_charging_status': entity('charging'),
     'sensor.volvo_ex30_charging_power': entity('11200', { unit_of_measurement: 'W' }),
   }) });
   assert.match(root(charging.card).querySelector('.chip').textContent, /11\.2 kW/);
 
-  const open = await fixture({ state: states('ex30', {
+  const open = await fixture({ config: COMPACT, state: states('ex30', {
     'binary_sensor.volvo_ex30_door_front_left': entity('on'),
     'binary_sensor.volvo_ex30_tank_lid': entity('on'),
   }) });
@@ -420,41 +420,107 @@ test('a missing supply is amber, not the red fault treatment', async () => {
   assert.equal(root(card).querySelector('.alert-line').className.trim(), 'alert-line warn');
 });
 
-test('the banner is the default layout and leads with the picture', async () => {
+test('the banner keeps the picture clean and puts the data in one band', async () => {
   const { card } = await fixture();
-  assert.ok(root(card).querySelector('.banner'));
-  assert.equal(!!root(card).querySelector('.compact'), false);
-  assert.equal(!!root(card).querySelector('.hero'), false);
   const media = root(card).querySelector('.banner-media');
-  assert.equal(media.getAttribute('style'), '--banner-h:180px', 'default banner height');
+  assert.equal(media.getAttribute('style'), '--banner-h:160px', 'default banner height');
   assert.ok(media.querySelector('img'));
-  assert.match(text(card), /Volvo EX30/);
-  assert.match(text(card), /41/);
-  assert.match(text(card), /138/);
-  assert.ok(root(card).querySelector('[data-action="lock"]'));
+  // Nothing is written on the car: the media holds a picture and a fade, no text.
+  assert.equal(media.textContent.trim(), '', 'no text over the picture');
+  assert.equal(media.querySelectorAll('button').length, 0, 'no controls over the picture');
+  assert.equal(media.querySelectorAll('.band-status').length, 0);
+  const band = root(card).querySelector('.banner-band');
+  assert.match(band.textContent, /Volvo EX30/);
+  assert.match(band.textContent, /41/);
+  assert.match(band.textContent, /138/);
+  assert.ok(band.querySelector('[data-action="identity"]'));
+  assert.ok(band.querySelector('[data-action="lock"]'));
+  assert.ok(band.querySelector('[data-action="disclosure"]'));
   assert.equal(!!root(card).querySelector('.details'), false, 'details stay behind the chevron');
   assert.equal(root(card).querySelectorAll('.row').length, 0, 'the banner shows nothing else');
+});
+
+test('the band drops the maker eyebrow when the name already says it', async () => {
+  const { card } = await fixture();
+  assert.equal(root(card).querySelector('.banner-band .eyebrow'), null);
+  const named = await fixture({ config: { type: 'custom:volvo-cars-card', car: 'ex30', name: 'The family car' } });
+  assert.match(root(named.card).querySelector('.banner-band .eyebrow').textContent, /Volvo/);
+});
+
+test('one status phrase, one accent colour, by priority', async () => {
+  const phrase = async state => root((await fixture({ state })).card).querySelector('.band-status');
+  // quiet: plugged, charging, opening and fault all absent
+  const quiet = await phrase(states('ex30', {
+    'sensor.volvo_ex30_charging_connection_status': entity('connected'),
+    'sensor.volvo_ex30_charging_status': entity('charging'),
+    'sensor.volvo_ex30_charging_power': entity('11200', { unit_of_measurement: 'W' }),
+    'sensor.volvo_ex30_charging_power_status': entity('ok'),
+  }));
+  assert.match(quiet.textContent, /Charging · 11\.2 kW/);
+  assert.equal(quiet.className.trim(), 'band-status quiet');
+  // amber: an opening outranks being plugged in
+  const opening = await phrase(states('ex30', {
+    'sensor.volvo_ex30_charging_connection_status': entity('connected'),
+    'sensor.volvo_ex30_charging_power_status': entity('ok'),
+    'binary_sensor.volvo_ex30_door_front_left': entity('on'),
+  }));
+  assert.match(opening.textContent, /Front left door open/);
+  assert.equal(opening.className.trim(), 'band-status warn');
+  // red: the car's fault outranks everything
+  const fault = await phrase(states('ex30', {
+    'sensor.volvo_ex30_charging_connection_status': entity('connected'),
+    'sensor.volvo_ex30_charging_power_status': entity('fault'),
+    'binary_sensor.volvo_ex30_door_front_left': entity('on'),
+  }));
+  assert.match(fault.textContent, /Plugged · charging fault/);
+  assert.equal(fault.className.trim(), 'band-status alert');
+  assert.equal(root((await fixture({ state: states('ex30', {
+    'sensor.volvo_ex30_charging_connection_status': entity('connected'),
+    'sensor.volvo_ex30_charging_power_status': entity('fault'),
+    'binary_sensor.volvo_ex30_door_front_left': entity('on'),
+  }) })).card).querySelectorAll('.band-status').length, 1, 'never more than one phrase');
+});
+
+test('the banner shows at most one line, and only when it adds something', async () => {
+  const lines = async state => root((await fixture({ state })).card).querySelectorAll('.banner-line');
+  // a single opening is already the phrase
+  assert.equal((await lines(states('ex30', { 'binary_sensor.volvo_ex30_tank_lid': entity('on') }))).length, 0);
+  // several openings are named on one line
+  const several = await lines(states('ex30', {
+    'binary_sensor.volvo_ex30_tank_lid': entity('on'),
+    'binary_sensor.volvo_ex30_door_front_left': entity('on'),
+  }));
+  assert.equal(several.length, 1);
+  assert.match(several[0].textContent, /front left door, charge port open/);
+  // a car-reported fault keeps its attributed guidance, and still only one line
+  const fault = await lines(states('ex30', {
+    'sensor.volvo_ex30_charging_connection_status': entity('connected'),
+    'sensor.volvo_ex30_charging_power_status': entity('fault'),
+    'binary_sensor.volvo_ex30_door_front_left': entity('on'),
+  }));
+  assert.equal(fault.length, 1);
+  assert.match(fault[0].textContent, /The car reports a charging fault/);
+  assert.equal(fault[0].className.trim(), 'banner-line alert');
 });
 
 test('the banner follows image_height and image_size, and shows the details on demand', async () => {
   const height = async config => root((await fixture({ config })).card).querySelector('.banner-media').getAttribute('style');
   assert.equal(await height({ type: 'custom:volvo-cars-card', car: 'ex30', image_height: 240 }), '--banner-h:240px');
-  assert.equal(await height({ type: 'custom:volvo-cars-card', car: 'ex30', image_size: 'large' }), '--banner-h:230px');
-  assert.equal(await height({ type: 'custom:volvo-cars-card', car: 'ex30', image_size: 'small' }), '--banner-h:140px');
+  assert.equal(await height({ type: 'custom:volvo-cars-card', car: 'ex30', image_size: 'large' }), '--banner-h:210px');
+  assert.equal(await height({ type: 'custom:volvo-cars-card', car: 'ex30', image_size: 'small' }), '--banner-h:130px');
   const { card } = await fixture();
   action(card, 'disclosure').click(); await settle(card);
   assert.ok(root(card).querySelector('.details'));
   assert.match(text(card), /All closed/);
 });
 
-test('without a picture the banner falls back to the identity band', async () => {
+test('without a picture the banner is just the band', async () => {
   const { card } = await fixture({ state: states('ex30', { 'device_tracker.volvo_ex30_location': entity('not_home') }) });
-  const media = root(card).querySelector('.banner-media');
-  assert.ok(media.classList.contains('empty'));
-  assert.equal(!!media.querySelector('img'), false);
-  assert.equal((text(card).match(/Volvo EX30/g) ?? []).length, 1);
-  assert.match(text(card), /41/);
-  assert.ok(media.querySelector('[data-action="lock"]'));
+  assert.equal(!!root(card).querySelector('.banner-media'), false, 'no empty banner frame');
+  const band = root(card).querySelector('.banner-band');
+  assert.match(band.textContent, /Volvo EX30/);
+  assert.match(band.textContent, /41/);
+  assert.ok(band.querySelector('[data-action="lock"]'));
 });
 
 test('a connected cable means the charge port is open, so the sensor is not echoed', async () => {

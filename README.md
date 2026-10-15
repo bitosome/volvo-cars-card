@@ -31,7 +31,7 @@ Optional keys:
 | `name` | Display name. Defaults to the lock entity's friendly name without “Lock”. |
 | `image` | Picture URL. Defaults to the `entity_picture` of `image_entity`. |
 | `image_entity` | Entity whose picture is used. Defaults to the car's `device_tracker.…_location`. |
-| `image_size` | `small`, `medium` (default) or `large`. Banner: 140 / **180** / 230 px tall. Compact thumbnail: 96×54 / **128×72** / 160×90. |
+| `image_size` | `small`, `medium` (default) or `large`. Banner picture: 130 / **160** / 210 px tall. Compact thumbnail: 96×54 / **128×72** / 160×90. |
 | `image_height` | Explicit picture height in pixels (32–260), overriding `image_size`; the compact thumbnail derives its width from the 16:9 car pictures. |
 | `entities` | Per-slot overrides, e.g. `{lock: lock.other, battery: sensor.other_battery}`. Slots: `lock`, `battery`, `range`, `odometer`, `charging_connection`, `charging_status`, `charging_power`, `charging_power_status`, `charging_type`, `charging_time`, `charging_target`. |
 | `show` | Which detail rows the disclosure can show: `charging`, `openings`, `actions`, `odometer`. Defaults to the first three. |
@@ -43,7 +43,9 @@ The Volvo integration exposes no image entity. Uploaded pictures live in Home As
 
 ## What it shows
 
-**Banner (default)** — the picture fills the card at **180 px** tall (cropped 16:9, so a 1920×1080 upload shows the car rather than shrinking inside the frame), with the name, battery figure and level bar (charge-target marker included), range, lock pill and chips on a soft scrim. Nothing else: the detail rows stay behind the chevron. With no picture configured it falls back to the identity band. Measured at 500 px wide: **180 px**, the same whether or not a fault is showing.
+**Banner (default)** — a clean picture at **160 px** tall (cropped 16:9, so a 1920×1080 upload shows the car), with nothing written on the car: just a whisper of a bottom gradient so the picture edge separates from the band. Below it, one **information band** (~56 px) holds the name as the anchor, the battery figure with its level bar and charge-target marker, distance-to-empty beside it, and the lock and chevron as light icon buttons — no rings. The maker eyebrow only appears when the name does not already say *Volvo*.
+
+Instead of a stack of chips the band carries **at most one status phrase**, in one accent colour, by priority: a car-reported fault (red, *Plugged · charging fault*) outranks an opening (amber, *Charge port open*, or *2 open*) which outranks simply being plugged in or charging (quiet, *Charging · 11.2 kW*). Below the band there is at most **one** line, and only when it adds something: the attributed fault guidance, or the names when several openings are listed — a single opening is already the phrase. Measured at 500 px wide: **160 px picture + ~56 px band**, so 216 px quiet and 236 px with a fault line. With no picture configured the card is just the band.
 
 **Compact** — one row, four zones:
 

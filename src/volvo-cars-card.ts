@@ -345,11 +345,11 @@ export class VolvoCarsCard extends LitElement {
   private signals(car: ResolvedCar) {
     const connection = this.entity(car.entities.charging_connection);
     const condition = this.entity(car.entities.charging_power_status);
-    const status = this.entity(car.entities.charging_status);
+    const chargingState = this.entity(car.entities.charging_status);
     const plugged = connection?.state === 'connected';
     const watts = numeric(this.entity(car.entities.charging_power)) ?? 0;
     const minutes = numeric(this.entity(car.entities.charging_time)) ?? 0;
-    const charging = plugged && status?.state === 'charging';
+    const charging = plugged && chargingState?.state === 'charging';
     const problem = plugged && available(condition) && !POWER_STATUS_OK.has(condition!.state) ? condition!.state : undefined;
     const open = this.openItems(car, plugged);
     const chips = [
@@ -369,7 +369,29 @@ export class VolvoCarsCard extends LitElement {
         : charging && minutes > 0
           ? { text: `${minutes >= 60 ? `${Math.floor(minutes / 60)} h ${Math.round(minutes % 60)} min` : `${Math.round(minutes)} min`} to ${numeric(this.entity(car.entities.charging_target)) !== undefined ? `${Math.round(numeric(this.entity(car.entities.charging_target))!)}%` : 'target'}${watts > 0 ? ` at ${(watts / 1000).toFixed(watts >= 100000 ? 0 : 1)} kW` : ''}.`, cls: '' }
           : undefined;
-    return { plugged, watts, minutes, charging, problem, open, chips, line };
+    // One phrase at most on the banner, with a single accent colour: what the car
+    // faults on outranks an opening, which outranks merely being plugged in.
+    const status = problem === 'fault'
+      ? { icon: 'mdi:alert-circle-outline', label: 'Plugged · charging fault', cls: 'alert' }
+      : problem
+        ? { icon: 'mdi:alert-outline', label: 'Plugged · no power', cls: 'warn' }
+        : open.length
+          ? { icon: open.length === 1 ? open[0].icon : 'mdi:car-door', label: open.length === 1 ? `${open[0].label} open` : `${open.length} open`, cls: 'warn' }
+          : charging
+            ? { icon: 'mdi:battery-charging', label: watts > 0 ? `Charging · ${(watts / 1000).toFixed(watts >= 100000 ? 0 : 1)} kW` : 'Charging', cls: 'quiet' }
+            : plugged
+              ? { icon: 'mdi:power-plug', label: 'Plugged', cls: 'quiet' }
+              : undefined;
+    // The banner says a fault where action is needed, and names several openings; a
+    // single opening is already the phrase, so it needs no second line.
+    const bannerLine = problem
+      ? { text: problem === 'fault'
+            ? 'The car reports a charging fault — check the cable and the charging station.'
+            : 'The car reports no power available at the charging station.', cls: problem === 'fault' ? 'alert' : 'warn' }
+      : open.length > 1
+        ? { text: `${open.slice(0, 3).map(item => item.key === 'tank_lid' ? 'charge port' : item.label.toLowerCase()).join(', ')} open${open.length > 3 ? ` and ${open.length - 3} more` : ''}.`, cls: 'warn' }
+        : undefined;
+    return { plugged, watts, minutes, charging, problem, open, chips, line, status, bannerLine };
   }
 
   /** The canonical amber/red pulse for a signal line. */
@@ -451,52 +473,48 @@ export class VolvoCarsCard extends LitElement {
     const battery = numeric(this.entity(car.entities.battery));
     const range = this.entity(car.entities.range);
     const target = numeric(this.entity(car.entities.charging_target));
-    const { chips, line } = this.signals(car);
+    const { status, bannerLine } = this.signals(car);
     const image = hassUrl(this.hass, car.image ?? '');
     const unlocked = lock?.state === 'unlocked';
     const jammed = !!lock && available(lock) && !['locked', 'unlocked', 'locking', 'unlocking'].includes(lock.state);
     const busy = this.pending === car.entities.lock;
     const lockLabel = !pressable(lock) ? 'Lock unavailable' : busy ? (lock?.state === 'locked' ? 'Unlocking' : 'Locking') : lock?.state === 'locked' ? 'Unlock' : 'Lock';
-    const glow = buildGlow(this.pulseFor(line), 'static', !!line);
+    const glow = buildGlow(this.pulseFor(bannerLine), 'static', !!bannerLine);
+    // The maker only earns an eyebrow when the name does not already say it.
+    const maker = /volvo/i.test(car.name) ? undefined : 'Volvo';
     return html`<ha-card>
       <div class="root">
         <div class="tile-wrap">
           <div class="glow-under" style=${glow.style}>${glow.overlay}</div>
           <section class="surface banner" aria-label=${`${car.name} status`}>
-            <div class="banner-media ${image ? '' : 'empty'}" style=${`--banner-h:${car.bannerHeight}px`}>
-              ${image ? html`<img src=${image} alt="" referrerpolicy="no-referrer" />` : nothing}
-              <div class="banner-scrim">
-                <div class="banner-top">
-                  <button class="compact-identity" data-action="identity" aria-label=${`${car.name} battery ${battery ?? 'unavailable'} percent`} @click=${() => this.moreInfo(car.entities.battery)}>
-                    <span class="eyebrow">Volvo</span>
-                    <span class="name">${car.name}</span>
-                  </button>
-                  <div class="compact-controls">
-                    <button class="lock-pill ${unlocked ? 'unlocked' : jammed ? 'alert' : ''}" data-action="lock"
-                            ?disabled=${!pressable(lock) || busy} aria-label=${lockLabel}
-                            @click=${() => lock && this.lockAction(car, lock)}>
-                      <ha-icon .icon=${busy ? 'mdi:progress-clock' : jammed ? 'mdi:lock-alert' : lock?.state === 'locked' ? 'mdi:lock' : 'mdi:lock-open-variant'}></ha-icon>
-                      <span class="sr-only">${lockLabel}</span>
-                    </button>
-                    ${this.showRows(car).length ? html`<button class="disclosure" data-action="disclosure" aria-expanded=${this.expanded ? 'true' : 'false'}
-                            aria-label=${this.expanded ? 'Hide details' : 'Show details'} @click=${() => { this.expanded = !this.expanded; }}>
-                      <ha-icon .icon=${'mdi:chevron-down'}></ha-icon><span class="sr-only">Details</span></button>` : nothing}
-                  </div>
-                </div>
-                <div class="banner-bottom">
-                  <div class="banner-figures">
-                    <span class="banner-value">${battery === undefined ? '—' : Math.round(battery)}<span class="figure-unit">%</span></span>
-                    <span class="banner-range">${available(range) ? `${range!.state} ${range?.attributes?.unit_of_measurement ?? 'km'}` : ''}</span>
-                  </div>
-                  <span class="banner-level" role="img" aria-label=${`Battery level ${battery ?? 'unknown'} percent`}>
+            ${image ? html`<div class="banner-media" style=${`--banner-h:${car.bannerHeight}px`}>
+              <img src=${image} alt=${car.name} referrerpolicy="no-referrer" />
+              <span class="banner-fade"></span>
+            </div>` : nothing}
+            <div class="banner-band">
+              <button class="band-identity" data-action="identity" aria-label=${`${car.name} battery ${battery ?? 'unavailable'} percent`} @click=${() => this.moreInfo(car.entities.battery)}>
+                <span class="band-name">${maker ? html`<span class="eyebrow">${maker}</span> ` : nothing}${car.name}</span>
+                <span class="band-figures">
+                  <span class="band-value">${battery === undefined ? '—' : Math.round(battery)}<span class="figure-unit">%</span></span>
+                  <span class="band-level" role="img" aria-label=${`Battery level ${battery ?? 'unknown'} percent`}>
                     <span style=${`width:${Math.min(100, Math.max(0, battery ?? 0))}%`}></span>
-                    ${target !== undefined ? html`<span class="banner-level target" style=${`left:${Math.min(100, Math.max(0, target))}%`}></span>` : nothing}
+                    ${target !== undefined ? html`<span class="band-level target" style=${`left:${Math.min(100, Math.max(0, target))}%`}></span>` : nothing}
                   </span>
-                  ${chips.length ? this.chipList(chips) : nothing}
-                  ${line ? html`<p class="banner-note ${line.cls}" role="status">${line.text}</p>` : nothing}
-                </div>
-              </div>
+                  <span class="band-range">${available(range) ? `${range!.state} ${range?.attributes?.unit_of_measurement ?? 'km'}` : ''}</span>
+                </span>
+              </button>
+              ${status ? html`<span class="band-status ${status.cls}" role="status"><ha-icon .icon=${status.icon}></ha-icon>${status.label}</span>` : nothing}
+              <button class="lock-pill ${unlocked ? 'unlocked' : jammed ? 'alert' : ''}" data-action="lock"
+                      ?disabled=${!pressable(lock) || busy} aria-label=${lockLabel}
+                      @click=${() => lock && this.lockAction(car, lock)}>
+                <ha-icon .icon=${busy ? 'mdi:progress-clock' : jammed ? 'mdi:lock-alert' : lock?.state === 'locked' ? 'mdi:lock' : 'mdi:lock-open-variant'}></ha-icon>
+                <span class="sr-only">${lockLabel}</span>
+              </button>
+              ${this.showRows(car).length ? html`<button class="disclosure" data-action="disclosure" aria-expanded=${this.expanded ? 'true' : 'false'}
+                      aria-label=${this.expanded ? 'Hide details' : 'Show details'} @click=${() => { this.expanded = !this.expanded; }}>
+                <ha-icon .icon=${'mdi:chevron-down'}></ha-icon><span class="sr-only">Details</span></button>` : nothing}
             </div>
+            ${bannerLine ? html`<p class="banner-line ${bannerLine.cls}" role="status">${bannerLine.text}</p>` : nothing}
           </section>
         </div>
         ${this.expanded ? html`<div class="tile-wrap">${buildGlow(undefined, 'static', false).overlay}
@@ -533,4 +551,4 @@ cardWindow.customCards.push({
   description: 'Battery, range, lock, openings and charging for one Volvo, in the Space Hub style.',
   preview: true,
 });
-console.info('%c VOLVO CARS CARD %c 0.4.0 ', 'background:#8fb4ff;color:#181a27;font-weight:700', 'background:#292b3e;color:#dedff5');
+console.info('%c VOLVO CARS CARD %c 0.5.0 ', 'background:#8fb4ff;color:#181a27;font-weight:700', 'background:#292b3e;color:#dedff5');
