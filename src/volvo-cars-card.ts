@@ -24,6 +24,7 @@ export class VolvoCarsCard extends LitElement {
   @state() private config?: VolvoCardConfig;
   @state() private pending = '';
   @state() private feedback = '';
+  @state() private expanded = false;
   private pendingTimer?: ReturnType<typeof setTimeout>;
   private feedbackTimer?: ReturnType<typeof setTimeout>;
 
@@ -41,6 +42,7 @@ export class VolvoCarsCard extends LitElement {
     this.config = validateConfig(config);
     this.pending = '';
     this.feedback = '';
+    this.expanded = false;
   }
 
   getCardSize() { return 8; }
@@ -287,10 +289,7 @@ export class VolvoCarsCard extends LitElement {
       <span class="row-sub">Odometer</span></span></div>`;
   }
 
-  protected render() {
-    const car = this.car;
-    if (!car) return html`<ha-card><div class="section"><div class="row-title">Choose the car</div>
-      <p class="hint">Open the card settings and select the car, for example <code>ex30</code>.</p></div></ha-card>`;
+  private renderFull(car: ResolvedCar) {
     return html`<ha-card>
       <div class="root">
         ${this.renderHero(car)}
@@ -312,6 +311,108 @@ export class VolvoCarsCard extends LitElement {
       </div>
     </ha-card>`;
   }
+
+  private openItems(car: ResolvedCar) {
+    return car.openings
+      .map(item => ({ ...item, state: this.entity(item.entity) }))
+      .filter(item => item.state?.state === 'on');
+  }
+
+  /**
+   * One dense status line: thumbnail, identity with the battery figure, only the
+   * chips that carry information, and the lock. Anything abnormal adds at most one
+   * quiet line; every detail row stays behind the disclosure.
+   */
+  private renderCompact(car: ResolvedCar) {
+    const lock = this.entity(car.entities.lock);
+    const battery = numeric(this.entity(car.entities.battery));
+    const range = this.entity(car.entities.range);
+    const target = numeric(this.entity(car.entities.charging_target));
+    const connection = this.entity(car.entities.charging_connection);
+    const condition = this.entity(car.entities.charging_power_status);
+    const status = this.entity(car.entities.charging_status);
+    const plugged = connection?.state === 'connected';
+    const watts = numeric(this.entity(car.entities.charging_power)) ?? 0;
+    const minutes = numeric(this.entity(car.entities.charging_time)) ?? 0;
+    const charging = plugged && status?.state === 'charging';
+    const problem = plugged && available(condition) && !POWER_STATUS_OK.has(condition!.state) ? condition!.state : undefined;
+    const open = this.openItems(car);
+    const image = hassUrl(this.hass, car.image ?? '');
+    const unlocked = lock?.state === 'unlocked';
+    const jammed = !!lock && available(lock) && !['locked', 'unlocked', 'locking', 'unlocking'].includes(lock.state);
+    const busy = this.pending === car.entities.lock;
+    const lockLabel = !pressable(lock) ? 'Lock unavailable' : busy ? (lock?.state === 'locked' ? 'Unlocking' : 'Locking') : lock?.state === 'locked' ? 'Unlock' : 'Lock';
+    const chips = [
+      plugged ? { icon: charging ? 'mdi:battery-charging' : 'mdi:power-plug', label: watts > 0 ? `${(watts / 1000).toFixed(watts >= 100000 ? 0 : 1)} kW` : charging ? 'Charging' : 'Plugged', cls: charging ? 'charging' : '' } : undefined,
+      open.length ? { icon: 'mdi:car-door', label: `${open.length} open`, cls: 'warn' } : undefined,
+      problem ? { icon: 'mdi:alert-circle-outline', label: problem === 'fault' ? 'Fault' : 'No power', cls: 'alert' } : undefined,
+    ].filter((chip): chip is { icon: string; label: string; cls: string } => !!chip);
+    const line = problem
+      ? { text: problem === 'fault' ? 'Charger fault — check the cable and the charging station.' : 'Plugged in, but the charging station is not supplying power.', cls: problem === 'fault' ? 'alert' : 'warn' }
+      : open.length
+        ? { text: `${open.slice(0, 3).map(item => item.key === 'tank_lid' ? 'charge port' : item.label.toLowerCase()).join(', ')} open${open.length > 3 ? ` and ${open.length - 3} more` : ''}.`, cls: 'warn' }
+        : charging && minutes > 0
+          ? { text: `${minutes >= 60 ? `${Math.floor(minutes / 60)} h ${Math.round(minutes % 60)} min` : `${Math.round(minutes)} min`} to ${target !== undefined ? `${Math.round(target)}%` : 'target'}${watts > 0 ? ` at ${(watts / 1000).toFixed(watts >= 100000 ? 0 : 1)} kW` : ''}.`, cls: '' }
+          : undefined;
+    const pulse = line?.cls === 'alert' ? { weak: 'rgba(229,57,53,.30)', strong: 'rgba(229,57,53,.55)' }
+      : line?.cls === 'warn' ? { weak: 'rgba(255,152,0,.28)', strong: 'rgba(255,152,0,.50)' }
+        : undefined;
+    return html`<ha-card>
+      <div class="root">
+        <div class="tile-wrap">
+          ${buildGlow(pulse, 'static', !!pulse).overlay}
+          <section class="surface compact" aria-label=${`${car.name} status`}>
+            <button class="thumb" data-action="thumb" aria-label=${`Show ${car.name} location`} @click=${() => this.moreInfo(car.imageEntity)}>
+              ${image ? html`<img src=${image} alt="" referrerpolicy="no-referrer" />` : html`<ha-icon .icon=${'mdi:car'}></ha-icon>`}
+            </button>
+            <button class="compact-identity" data-action="identity" aria-label=${`${car.name} battery ${battery ?? 'unavailable'} percent`} @click=${() => this.moreInfo(car.entities.battery)}>
+              <span class="name">${car.name}</span>
+              <span class="compact-figures">
+                <span class="compact-value">${battery === undefined ? '—' : Math.round(battery)}<span class="figure-unit">%</span></span>
+                <span class="compact-range">${available(range) ? `${range!.state} ${range?.attributes?.unit_of_measurement ?? 'km'}` : ''}</span>
+              </span>
+              <span class="compact-level" role="img" aria-label=${`Battery level ${battery ?? 'unknown'} percent`}>
+                <span style=${`width:${Math.min(100, Math.max(0, battery ?? 0))}%`}></span>
+                ${target !== undefined ? html`<span class="compact-level target" style=${`left:${Math.min(100, Math.max(0, target))}%`}></span>` : nothing}
+              </span>
+            </button>
+            ${chips.length ? html`<div class="chips">${chips.map(chip => html`<span class="chip ${chip.cls}"><ha-icon .icon=${chip.icon}></ha-icon>${chip.label}</span>`)}</div>` : nothing}
+            <div class="compact-controls">
+              <button class="lock-pill ${unlocked ? 'unlocked' : jammed ? 'alert' : ''}" data-action="lock"
+                      ?disabled=${!pressable(lock) || busy} aria-label=${lockLabel}
+                      @click=${() => lock && this.lockAction(car, lock)}>
+                <ha-icon .icon=${busy ? 'mdi:progress-clock' : jammed ? 'mdi:lock-alert' : lock?.state === 'locked' ? 'mdi:lock' : 'mdi:lock-open-variant'}></ha-icon>
+                <span class="sr-only">${lockLabel}</span>
+              </button>
+              ${this.showRows(car).length ? html`<button class="disclosure" data-action="disclosure" aria-expanded=${this.expanded ? 'true' : 'false'}
+                      aria-label=${this.expanded ? 'Hide details' : 'Show details'} @click=${() => { this.expanded = !this.expanded; }}>
+                <ha-icon .icon=${'mdi:chevron-down'}></ha-icon><span class="sr-only">Details</span></button>` : nothing}
+            </div>
+            ${line ? html`<p class="alert-line ${line.cls}" role="status">${line.text}</p>` : nothing}
+          </section>
+        </div>
+        ${this.expanded ? html`<div class="tile-wrap">${buildGlow(undefined, 'static', false).overlay}
+          <section class="surface details" aria-label="Car details">${this.showRows(car)}</section></div>` : nothing}
+      </div>
+    </ha-card>`;
+  }
+
+  /** The rows a disclosure shows, in the order the config asks for. */
+  private showRows(car: ResolvedCar) {
+    return [
+      car.show.includes('charging') ? this.chargingRow(car) : nothing,
+      car.show.includes('openings') ? this.openingsRow(car) : nothing,
+      car.show.includes('odometer') ? this.odometerRow(car) : nothing,
+      car.show.includes('actions') && car.actions.length ? this.actionsRow(car) : nothing,
+    ].filter(row => row !== nothing);
+  }
+
+  protected render() {
+    const car = this.car;
+    if (!car) return html`<ha-card><div class="section"><div class="row-title">Choose the car</div>
+      <p class="hint">Open the card settings and select the car, for example <code>ex30</code>.</p></div></ha-card>`;
+    return car.layout === 'full' ? this.renderFull(car) : this.renderCompact(car);
+  }
 }
 
 const cardWindow = window as typeof window & { customCards?: Array<Record<string, unknown>> };
@@ -322,4 +423,4 @@ cardWindow.customCards.push({
   description: 'Battery, range, lock, openings and charging for one Volvo, in the Space Hub style.',
   preview: true,
 });
-console.info('%c VOLVO CARS CARD %c 0.1.1 ', 'background:#8fb4ff;color:#181a27;font-weight:700', 'background:#292b3e;color:#dedff5');
+console.info('%c VOLVO CARS CARD %c 0.2.0 ', 'background:#8fb4ff;color:#181a27;font-weight:700', 'background:#292b3e;color:#dedff5');

@@ -8,24 +8,45 @@
   Offline preview: mocked Home Assistant states, no connection to Home Assistant and
   no command is ever sent. Build first (`npm run build`), then serve the repository
   root (for example `python3 -m http.server 8767`) and open /preview/.
+  Each frame reports the measured height of its card so density can be checked.
 -->
 <style>
   :root { color-scheme: dark; --card-background-color:#20222f; --ha-card-background:#20222f; --primary-text-color:#dedff5; --secondary-text-color:#acb1cc; --divider-color:rgba(255,255,255,.08); --accent-color:#8fb4ff; }
-  body { margin:0; padding:24px; background:#171923; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; display:grid; gap:20px; grid-template-columns:repeat(auto-fit,minmax(340px,420px)); justify-content:center; align-items:start; }
+  body { margin:0; padding:24px; background:#171923; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; display:grid; gap:22px; grid-template-columns:repeat(auto-fit,minmax(360px,500px)); justify-content:center; align-items:start; }
   .frame { display:grid; gap:8px; }
   .frame h2 { font-size:13px; color:#acb1cc; font-weight:600; margin:0; }
+  .frame .measure { font-size:11px; color:#7f86a3; font-variant-numeric:tabular-nums; margin:0; }
 </style>
 </head>
 <body>
-<div class="frame"><h2>EX30 — plugged in, charger fault, charge port open</h2><volvo-cars-card id="ex30"></volvo-cars-card></div>
-<div class="frame"><h2>XC40 — unplugged and locked</h2><volvo-cars-card id="xc40"></volvo-cars-card></div>
+<div class="frame"><h2>compact · plugged in, charger fault, charge port open</h2><volvo-cars-card id="ex30"></volvo-cars-card><p class="measure" id="m-ex30"></p></div>
+<div class="frame"><h2>compact · unplugged and normal (one line, no chips)</h2><volvo-cars-card id="xc40"></volvo-cars-card><p class="measure" id="m-xc40"></p></div>
+<div class="frame"><h2>compact · details expanded</h2><volvo-cars-card id="open"></volvo-cars-card><p class="measure" id="m-open"></p></div>
+<div class="frame"><h2>full · the hero layout</h2><volvo-cars-card id="full"></volvo-cars-card><p class="measure" id="m-full"></p></div>
+<script>
+  // Home Assistant provides <ha-icon>; offline the preview substitutes a glyph so the
+  // layout and icon slots are visible instead of empty boxes. Preview-only.
+  const GLYPHS = { lock: '\u{1F512}', 'lock-open-variant': '\u{1F513}', 'lock-alert': '\u26A0', 'chevron-down': '\u2304',
+    'power-plug': '\u{1F50C}', 'power-plug-off-outline': '\u26D4', 'battery-charging': '\u{1F50B}', car: '\u{1F697}',
+    'car-door': '\u{1F6AA}', 'car-back': '\u{1F9F3}', 'window-closed': '\u25AD', 'window-open': '\u25A2', engine: '\u2699',
+    'ev-station': '\u26A1', 'alert-circle-outline': '\u26A0', 'alert-outline': '\u26A0', 'check-circle-outline': '\u2713',
+    counter: '\u{1F9ED}', 'map-marker-distance': '\u{1F4CD}', 'progress-clock': '\u23F3', 'information-outline': '\u2139',
+    'lightbulb-on-outline': '\u{1F4A1}', 'bullhorn-outline': '\u{1F4E3}', bullhorn: '\u{1F4E3}', snowflake: '\u2744',
+    'snowflake-off': '\u2745' };
+  customElements.define('ha-icon', class extends HTMLElement {
+    set icon(value) { this._icon = value; this.render(); }
+    get icon() { return this._icon; }
+    connectedCallback() { this.render(); }
+    render() { this.textContent = GLYPHS[String(this._icon ?? '').replace(/^mdi:/, '')] ?? '\u25CF'; this.style.fontSize = '15px'; this.style.lineHeight = '1'; }
+  });
+</script>
 <script type="module">
   await import('../dist/volvo-cars-card.js');
   const entity = (state, attributes = {}) => ({ state, attributes, last_changed: new Date().toISOString() });
   const OPEN = ['door_front_left','door_front_right','door_rear_left','door_rear_right','window_front_left','window_front_right','window_rear_left','window_rear_right','bonnet','sunroof','tailgate','tank_lid'];
 
-  function car(car, states) {
-    const base = {
+  function base(car, states) {
+    const set = {
       [`lock.volvo_${car}_lock`]: entity('locked', { friendly_name: `Volvo ${car.toUpperCase()} Lock` }),
       [`sensor.volvo_${car}_battery`]: entity('41', { unit_of_measurement: '%' }),
       [`sensor.volvo_${car}_distance_to_empty_battery`]: entity('138', { unit_of_measurement: 'km' }),
@@ -38,37 +59,63 @@
       [`sensor.volvo_${car}_target_battery_charge_level`]: entity('90', { unit_of_measurement: '%' }),
       [`device_tracker.volvo_${car}_location`]: entity('not_home'),
     };
-    for (const key of OPEN) base[`binary_sensor.volvo_${car}_${key}`] = entity('off');
-    for (const key of ['flash','honk','honk_flash','start_climatisation','stop_climatisation']) base[`button.volvo_${car}_${key}`] = entity('unknown');
-    return Object.assign(base, states);
+    for (const key of OPEN) set[`binary_sensor.volvo_${car}_${key}`] = entity('off');
+    for (const key of ['flash','honk','honk_flash','start_climatisation','stop_climatisation']) set[`button.volvo_${car}_${key}`] = entity('unknown');
+    return Object.assign(set, states);
   }
 
+  const states = {
+    ...base('ex30', {
+      'lock.volvo_ex30_lock': entity('unlocked', { friendly_name: 'Volvo EX30 Lock' }),
+      'sensor.volvo_ex30_battery': entity('63', { unit_of_measurement: '%' }),
+      'sensor.volvo_ex30_distance_to_empty_battery': entity('212', { unit_of_measurement: 'km' }),
+      'sensor.volvo_ex30_charging_connection_status': entity('connected'),
+      'sensor.volvo_ex30_charging_status': entity('charging'),
+      'sensor.volvo_ex30_charging_power': entity('11200', { unit_of_measurement: 'W' }),
+      'sensor.volvo_ex30_charging_power_status': entity('fault'),
+      'sensor.volvo_ex30_estimated_charging_time': entity('121', { unit_of_measurement: 'min' }),
+      'sensor.volvo_ex30_target_battery_charge_level': entity('90', { unit_of_measurement: '%' }),
+      'binary_sensor.volvo_ex30_tank_lid': entity('on'),
+      'binary_sensor.volvo_ex30_door_front_left': entity('on'),
+    }),
+    ...base('xc40', { 'sensor.volvo_xc40_battery': entity('70', { unit_of_measurement: '%' }) }),
+  };
+
   const hass = {
-    states: {
-      ...car('ex30', {
-        'lock.volvo_ex30_lock': entity('unlocked', { friendly_name: 'Volvo EX30 Lock' }),
-        'sensor.volvo_ex30_battery': entity('63', { unit_of_measurement: '%' }),
-        'sensor.volvo_ex30_distance_to_empty_battery': entity('212', { unit_of_measurement: 'km' }),
-        'sensor.volvo_ex30_charging_connection_status': entity('connected'),
-        'sensor.volvo_ex30_charging_status': entity('charging'),
-        'sensor.volvo_ex30_charging_power': entity('11200', { unit_of_measurement: 'W' }),
-        'sensor.volvo_ex30_charging_power_status': entity('fault'),
-        'sensor.volvo_ex30_estimated_charging_time': entity('121', { unit_of_measurement: 'min' }),
-        'sensor.volvo_ex30_target_battery_charge_level': entity('90', { unit_of_measurement: '%' }),
-        'binary_sensor.volvo_ex30_tank_lid': entity('on'),
-        'binary_sensor.volvo_ex30_door_front_left': entity('on'),
-      }),
-      ...car('xc40', { 'sensor.volvo_xc40_battery': entity('70', { unit_of_measurement: '%' }) }),
-    },
+    states,
     callService: async (domain, service, data) => console.info('preview would call', domain, service, data),
     hassUrl: path => path,
   };
 
-  for (const [id, config] of [['ex30', { car: 'ex30', name: 'Volvo EX30', show: ['charging','openings','actions'] }], ['xc40', { car: 'xc40', name: 'Volvo XC40', show: ['charging','openings','actions','odometer'] }]]) {
+  const cards = [
+    ['ex30', { car: 'ex30', name: 'Volvo EX30' }],
+    ['xc40', { car: 'xc40', name: 'Volvo XC40' }],
+    ['open', { car: 'xc40', name: 'Volvo XC40', show: ['charging', 'openings', 'odometer', 'actions'] }],
+    ['full', { car: 'ex30', name: 'Volvo EX30', layout: 'full' }],
+  ];
+  for (const [id, config] of cards) {
     const card = document.getElementById(id);
     card.setConfig({ type: 'custom:volvo-cars-card', ...config });
     card.hass = hass;
   }
+  await Promise.all(cards.map(([id]) => document.getElementById(id).updateComplete));
+  document.getElementById('open').shadowRoot.querySelector('[data-action="disclosure"]').click();
+  await document.getElementById('open').updateComplete;
+
+  // Report the real rendered height so density is checkable rather than assumed.
+  const report = () => {
+    for (const [id] of cards) {
+      const card = document.getElementById(id);
+      const compact = card.shadowRoot.querySelector('.surface.compact');
+      const row = compact ?? card.shadowRoot.querySelector('.hero');
+      const target = document.getElementById(`m-${id}`);
+      if (row && target) {
+        target.textContent = `${compact ? 'compact row' : 'hero'}: ${Math.round(row.getBoundingClientRect().height)} px tall at ${Math.round(card.getBoundingClientRect().width)} px wide`;
+      }
+    }
+  };
+  report();
+  window.addEventListener('resize', report);
 </script>
 </body>
 </html>

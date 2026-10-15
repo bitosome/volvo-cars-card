@@ -7,6 +7,7 @@ import { css } from 'lit';
  */
 export const cardStyles = css`
   :host {
+    container-type: inline-size;
     --car-accent: var(--accent-color, #8fb4ff);
     --car-surface: var(--ha-card-background, var(--card-background-color, #292b3e));
     --car-muted: var(--secondary-text-color, #acb1cc);
@@ -91,5 +92,41 @@ export const cardStyles = css`
   .item ha-icon { width: 18px; height: 18px; --mdc-icon-size: 18px; flex-basis: 18px; color: var(--status-warn-color); }
   .item.charge ha-icon { color: var(--status-alert-color); }
   .item span { overflow-wrap: anywhere; }
+  /* ---- compact layout: one dense status row ---- */
+  /* The identity keeps a readable minimum; the chips column is capped, so chips wrap
+     inside it rather than truncating the car's name. */
+  .compact { display: grid; grid-template-columns: auto minmax(132px,1fr) minmax(0,150px) auto; align-items: center; column-gap: 9px; row-gap: 4px; padding: 10px 12px; }
+  .thumb { padding: 0; border: 0; width: 96px; height: 54px; border-radius: calc(var(--tile-border-radius) - 4px); overflow: hidden; background: color-mix(in srgb,var(--primary-text-color) 6%,transparent); display: grid; place-items: center; color: var(--car-muted); flex: 0 0 auto; }
+  .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .thumb ha-icon { width: 26px; height: 26px; --mdc-icon-size: 26px; flex-basis: 26px; }
+  .compact-identity { display: grid; gap: 3px; min-width: 0; text-align: left; padding: 0; border: 0; background: transparent; }
+  .compact-identity .name { font-size: 13px; font-weight: 600; letter-spacing: -.01em; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .compact-figures { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+  .compact-value { font-size: 21px; font-weight: 680; letter-spacing: -.03em; font-variant-numeric: tabular-nums; line-height: 1; }
+  .compact-value .figure-unit { font-size: 12px; }
+  .compact-range { font-size: 12px; color: var(--car-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .compact-level { position: relative; height: 3px; width: min(140px, 100%); border-radius: 999px; overflow: hidden; background: color-mix(in srgb,var(--primary-text-color) 12%,transparent); }
+  .compact-level > span { display: block; height: 100%; border-radius: inherit; background: var(--car-accent); transition: width .3s; }
+  .compact-level.target { position: absolute; top: 0; bottom: 0; width: 2px; background: color-mix(in srgb,var(--primary-text-color) 55%,transparent); }
+  .chips { display: flex; flex-wrap: wrap; gap: 5px; min-width: 0; justify-content: flex-end; overflow: hidden; }
+  .chip { display: inline-flex; align-items: center; gap: 3px; padding: 3px 7px; border-radius: var(--chip-border-radius); font-size: 11px; font-weight: 600; line-height: 1.2; color: var(--car-muted); background: color-mix(in srgb,var(--primary-text-color,#ddd) 7%,transparent); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .chip ha-icon { width: 13px; height: 13px; --mdc-icon-size: 13px; flex-basis: 13px; }
+  .chip.charging { color: color-mix(in srgb,var(--status-success-color) 68%,var(--primary-text-color) 32%); background: color-mix(in srgb,var(--status-success-color) 13%,transparent); }
+  .chip.warn { color: color-mix(in srgb,var(--status-warn-color) 72%,var(--primary-text-color) 28%); background: color-mix(in srgb,var(--status-warn-color) 15%,transparent); }
+  .chip.alert { color: color-mix(in srgb,var(--status-alert-color) 74%,var(--primary-text-color) 26%); background: color-mix(in srgb,var(--status-alert-color) 15%,transparent); }
+  .compact-controls { display: flex; align-items: center; gap: 6px; justify-self: end; }
+  .lock-pill, .disclosure { display: grid; place-items: center; width: 40px; height: 40px; padding: 0; border: 1px solid var(--divider-color, rgba(255,255,255,.1)); border-radius: 999px; background: color-mix(in srgb,var(--primary-text-color) 7%,transparent); color: var(--primary-text-color); }
+  .lock-pill.unlocked { color: color-mix(in srgb,var(--switch-lock-unlocked-color,#e53935) 78%,var(--primary-text-color) 22%); border-color: color-mix(in srgb,var(--switch-lock-unlocked-color,#e53935) 40%,transparent); }
+  .lock-pill.alert { color: var(--status-alert-color); border-color: color-mix(in srgb,var(--status-alert-color) 40%,transparent); }
+  .lock-pill ha-icon, .disclosure ha-icon { width: 20px; height: 20px; --mdc-icon-size: 20px; flex-basis: 20px; }
+  .disclosure ha-icon { transition: transform .2s; }
+  .disclosure[aria-expanded="true"] ha-icon { transform: rotate(180deg); }
+  .alert-line { grid-column: 1 / -1; margin: 2px 0 0; font-size: 12px; line-height: 1.45; color: var(--car-muted); overflow-wrap: anywhere; }
+  .alert-line.warn { color: color-mix(in srgb,var(--status-warn-color) 74%,var(--primary-text-color) 26%); }
+  .alert-line.alert { color: color-mix(in srgb,var(--status-alert-color) 76%,var(--primary-text-color) 24%); }
+  .details { margin-top: var(--medium-gap); }
+  /* Narrow columns put the chips on their own line instead of squeezing the name. */
+  @container (max-width: 430px) { .compact { grid-template-columns: auto minmax(132px,1fr) auto; } .chips { grid-column: 2 / -1; justify-content: flex-start; } }
+  @container (max-width: 340px) { .thumb { width: 72px; height: 44px; } .compact-value { font-size: 19px; } }
   .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 `;

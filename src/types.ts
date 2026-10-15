@@ -32,8 +32,13 @@ export type Opening = typeof OPENINGS[number];
 export const ACTIONS = ['flash', 'honk', 'honk_flash', 'start_climatisation', 'stop_climatisation'] as const;
 export type Action = typeof ACTIONS[number];
 
+export const LAYOUTS = ['compact', 'full'] as const;
+export type Layout = typeof LAYOUTS[number];
+
 export interface VolvoCardConfig {
   type: string;
+  /** `compact` is one dense row; `full` is the hero layout. */
+  layout?: Layout;
   /** Car key used to derive every entity id, e.g. `ex30` for `volvo_ex30_*`. */
   car?: string;
   /** Explicit entity prefix, e.g. `volvo_ex30_`, for a car key that does not fit. */
@@ -49,6 +54,7 @@ export interface VolvoCardConfig {
 }
 
 export interface ResolvedCar {
+  layout: Layout;
   name: string;
   prefix: string;
   image?: string;
@@ -119,6 +125,7 @@ export function resolveCar(config: VolvoCardConfig, hass?: Hass): ResolvedCar {
   }));
   return {
     prefix,
+    layout: config.layout ?? 'compact',
     name: config.name || stripCarName(named) || `Volvo ${String(config.car ?? '').toUpperCase()}`.trim(),
     image: config.image || (typeof tracked === 'string' ? tracked : undefined),
     imageEntity,
@@ -148,6 +155,7 @@ export function validateConfig(raw: VolvoCardConfig): VolvoCardConfig {
       if (typeof entity !== 'string' || !ID.test(entity)) throw new Error(`Invalid entity for ${slot}.`);
     }
   }
+  if (raw.layout !== undefined && !(LAYOUTS as readonly string[]).includes(raw.layout)) throw new Error('layout must be compact or full.');
   if (raw.show !== undefined) {
     if (!Array.isArray(raw.show)) throw new Error('show must be a list of rows.');
     for (const row of raw.show) if (!(ROWS as readonly string[]).includes(row)) throw new Error(`Unknown row ${row}.`);
