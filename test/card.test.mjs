@@ -54,6 +54,7 @@ async function fixture({ config = { type: 'custom:volvo-cars-card', car: 'ex30' 
 }
 
 const FULL = { type: 'custom:volvo-cars-card', car: 'ex30', layout: 'full' };
+const COMPACT = { type: 'custom:volvo-cars-card', car: 'ex30', layout: 'compact' };
 const root = card => card.shadowRoot;
 const text = card => root(card).textContent.replace(/\s+/g, ' ');
 const action = (card, name) => root(card).querySelector(`[data-action="${name}"]`);
@@ -72,7 +73,7 @@ test('the hero shows the car, battery, range and its picture without sending any
 
 test('without a picture the hero still names the car once', async () => {
   const { card } = await fixture({ state: states('ex30', { 'device_tracker.volvo_ex30_location': entity('not_home') }) });
-  assert.equal(root(card).querySelector('img'), null);
+  assert.equal(!!root(card).querySelector('img'), false);
   assert.equal((text(card).match(/Volvo EX30/g) ?? []).length, 1);
 });
 
@@ -219,10 +220,10 @@ test('a car whose entities are absent says so instead of guessing', async () => 
 });
 
 test('the compact layout is a single row with no detail rows until expanded', async () => {
-  const { card } = await fixture();
+  const { card } = await fixture({ config: COMPACT });
   assert.equal(root(card).querySelectorAll('.compact').length, 1);
-  assert.equal(root(card).querySelector('.details'), null);
-  assert.equal(root(card).querySelector('.hero'), null);
+  assert.equal(!!root(card).querySelector('.details'), false);
+  assert.equal(!!root(card).querySelector('.hero'), false);
   const quiet = text(card);
   for (const gone of ['All closed', 'Quick actions', 'Odometer', 'Not plugged in']) assert.doesNotMatch(quiet, new RegExp(gone));
   const disclosure = action(card, 'disclosure');
@@ -233,15 +234,15 @@ test('the compact layout is a single row with no detail rows until expanded', as
   assert.match(text(card), /All closed/);
   assert.match(text(card), /Quick actions/);
   action(card, 'disclosure').click(); await settle(card);
-  assert.equal(root(card).querySelector('.details'), null);
+  assert.equal(!!root(card).querySelector('.details'), false);
 });
 
 test('chips appear only when they carry information', async () => {
-  const normal = await fixture();
+  const normal = await fixture({ config: COMPACT });
   assert.equal(root(normal.card).querySelectorAll('.chip').length, 0, 'a normal car shows no chips');
-  assert.equal(root(normal.card).querySelector('.alert-line'), null, 'a normal car stays one line');
+  assert.equal(!!root(normal.card).querySelector('.alert-line'), false, 'a normal car stays one line');
 
-  const plugged = await fixture({ state: states('ex30', {
+  const plugged = await fixture({ config: COMPACT, state: states('ex30', {
     'sensor.volvo_ex30_charging_connection_status': entity('connected'),
   }) });
   assert.match(root(plugged.card).querySelector('.chip').textContent, /Plugged/);
@@ -262,7 +263,7 @@ test('chips appear only when they carry information', async () => {
 });
 
 test('a fault while plugged in is chipped and named once', async () => {
-  const { card } = await fixture({ state: states('ex30', {
+  const { card } = await fixture({ config: COMPACT, state: states('ex30', {
     'sensor.volvo_ex30_charging_connection_status': entity('connected'),
     'sensor.volvo_ex30_charging_power_status': entity('fault'),
   }) });
@@ -273,7 +274,7 @@ test('a fault while plugged in is chipped and named once', async () => {
 });
 
 test('the extra line names what changed instead of listing everything', async () => {
-  const { card } = await fixture({ state: states('ex30', {
+  const { card } = await fixture({ config: COMPACT, state: states('ex30', {
     'binary_sensor.volvo_ex30_door_front_left': entity('on'),
     'binary_sensor.volvo_ex30_window_rear_right': entity('on'),
   }) });
@@ -283,14 +284,14 @@ test('the extra line names what changed instead of listing everything', async ()
 });
 
 test('the compact lock pill sends one call, shows pending and refuses when unavailable', async () => {
-  const { card, calls } = await fixture();
+  const { card, calls } = await fixture({ config: COMPACT });
   const pill = action(card, 'lock');
   assert.equal(pill.getAttribute('aria-label'), 'Unlock');
   pill.click(); await settle(card);
   assert.deepEqual(calls, [{ domain: 'lock', service: 'unlock', data: { entity_id: 'lock.volvo_ex30_lock' } }]);
   assert.equal(action(card, 'lock').getAttribute('aria-label'), 'Unlocking');
 
-  const refused = await fixture({ state: states('ex30', { 'lock.volvo_ex30_lock': entity('unavailable') }) });
+  const refused = await fixture({ config: COMPACT, state: states('ex30', { 'lock.volvo_ex30_lock': entity('unavailable') }) });
   assert.equal(action(refused.card, 'lock').disabled, true);
   action(refused.card, 'lock').click(); await settle(refused.card);
   assert.deepEqual(refused.calls, []);
@@ -308,12 +309,12 @@ test('layout full still renders the hero structure', async () => {
   const { card } = await fixture({ config: { type: 'custom:volvo-cars-card', car: 'ex30', layout: 'full' } });
   assert.ok(root(card).querySelector('.hero'));
   assert.ok(root(card).querySelector('.figures'));
-  assert.equal(root(card).querySelector('.compact'), null);
+  assert.equal(!!root(card).querySelector('.compact'), false);
   assert.match(text(card), /All closed/);
 });
 
 test('the compact row keeps chips and the single line inside one tile', async () => {
-  const { card } = await fixture({ state: states('ex30', {
+  const { card } = await fixture({ config: COMPACT, state: states('ex30', {
     'sensor.volvo_ex30_charging_connection_status': entity('connected'),
     'binary_sensor.volvo_ex30_door_front_left': entity('on'),
   }) });
@@ -333,7 +334,7 @@ test('neither layout leaks an object into the text', async () => {
     'sensor.volvo_ex30_charging_power_status': entity('fault'),
     'binary_sensor.volvo_ex30_tank_lid': entity('on'),
   };
-  for (const config of [{ type: 'custom:volvo-cars-card', car: 'ex30' }, FULL]) {
+  for (const config of [COMPACT, FULL]) {
     const { card } = await fixture({ config, state: states('ex30', abnormal) });
     assert.doesNotMatch(text(card), /\[object /, `${config.layout ?? 'compact'} layout must not render an object`);
     // Only an abnormal compact row carries the accent glow; the hero has none of its own.
@@ -344,19 +345,19 @@ test('neither layout leaks an object into the text', async () => {
 test('an open charge port is an opening, never a fault', async () => {
   // Unplugged, port open, and the car reporting no_power_available: that state is not
   // a fault while unplugged, and the port itself must never look like one.
-  const { card } = await fixture({ state: states('ex30', { 'binary_sensor.volvo_ex30_tank_lid': entity('on') }) });
+  const { card } = await fixture({ config: COMPACT, state: states('ex30', { 'binary_sensor.volvo_ex30_tank_lid': entity('on') }) });
   const chips = root(card).querySelectorAll('.chip');
   assert.equal(chips.length, 1);
   assert.match(chips[0].textContent, /Charge port open/);
   assert.equal(chips[0].className.trim(), 'chip warn');
-  assert.equal(root(card).querySelector('.chip.alert'), null, 'no fault chip for an opening');
+  assert.equal(!!root(card).querySelector('.chip.alert'), false, 'no fault chip for an opening');
   // The named chip is the whole indication; a single opening needs no second line.
-  assert.equal(root(card).querySelector('.alert-line'), null, 'no fault line for an opening');
+  assert.equal(!!root(card).querySelector('.alert-line'), false, 'no fault line for an opening');
   assert.equal(root(card).querySelector('.surface.compact').className.trim(), 'surface compact', 'no red surface treatment');
 });
 
 test('several openings are named on one amber line', async () => {
-  const { card } = await fixture({ state: states('ex30', {
+  const { card } = await fixture({ config: COMPACT, state: states('ex30', {
     'binary_sensor.volvo_ex30_tank_lid': entity('on'),
     'binary_sensor.volvo_ex30_door_front_left': entity('on'),
   }) });
@@ -364,29 +365,29 @@ test('several openings are named on one amber line', async () => {
   const line = root(card).querySelector('.alert-line');
   assert.equal(line.className.trim(), 'alert-line warn');
   assert.match(line.textContent, /front left door, charge port open/);
-  assert.equal(root(card).querySelector('.chip.alert'), null);
+  assert.equal(!!root(card).querySelector('.chip.alert'), false);
 });
 
 test('a car-reported fault with everything closed gets the fault treatment', async () => {
-  const { card } = await fixture({ state: states('ex30', {
+  const { card } = await fixture({ config: COMPACT, state: states('ex30', {
     'sensor.volvo_ex30_charging_connection_status': entity('connected'),
     'sensor.volvo_ex30_charging_power_status': entity('fault'),
   }) });
   assert.match(root(card).querySelector('.chip.alert').textContent, /Charging fault/);
-  assert.equal(root(card).querySelector('.chip.warn'), null, 'nothing open, so no opening chip');
+  assert.equal(!!root(card).querySelector('.chip.warn'), false, 'nothing open, so no opening chip');
   assert.equal(root(card).querySelector('.alert-line').className.trim(), 'alert-line alert');
   assert.match(root(card).querySelector('.glow-under').getAttribute('style'), /229,57,53/);
 });
 
 test('an open port and a car-reported fault stay two separate signals', async () => {
-  const { card } = await fixture({ state: states('ex30', {
+  const { card } = await fixture({ config: COMPACT, state: states('ex30', {
     'sensor.volvo_ex30_charging_connection_status': entity('connected'),
     'sensor.volvo_ex30_charging_power_status': entity('fault'),
-    'binary_sensor.volvo_ex30_tank_lid': entity('on'),
+    'binary_sensor.volvo_ex30_door_front_left': entity('on'),
   }) });
   const warn = root(card).querySelector('.chip.warn');
   const alert = root(card).querySelector('.chip.alert');
-  assert.match(warn.textContent, /Charge port open/, 'the port is the amber opening signal');
+  assert.match(warn.textContent, /Front left door open/, 'an opening is its own amber signal');
   assert.match(alert.textContent, /Charging fault/, 'the car report is its own red signal');
   const line = root(card).querySelector('.alert-line');
   assert.equal(line.className.trim(), 'alert-line alert');
@@ -396,7 +397,7 @@ test('an open port and a car-reported fault stay two separate signals', async ()
 });
 
 test('the image size defaults to medium and follows image_size or image_height', async () => {
-  const size = async config => root((await fixture({ config })).card).querySelector('.thumb').getAttribute('style');
+  const size = async config => root((await fixture({ config: { ...COMPACT, ...config } })).card).querySelector('.thumb').getAttribute('style');
   assert.match(await size({ type: 'custom:volvo-cars-card', car: 'ex30' }), /--thumb-w:128px;--thumb-h:72px/);
   assert.match(await size({ type: 'custom:volvo-cars-card', car: 'ex30', image_size: 'small' }), /--thumb-w:96px;--thumb-h:54px/);
   assert.match(await size({ type: 'custom:volvo-cars-card', car: 'ex30', image_size: 'large' }), /--thumb-w:160px;--thumb-h:90px/);
@@ -405,4 +406,105 @@ test('the image size defaults to medium and follows image_size or image_height',
   assert.throws(() => card.setConfig({ type: 'custom:volvo-cars-card', car: 'ex30', image_size: 'huge' }), /image_size must be/);
   assert.throws(() => card.setConfig({ type: 'custom:volvo-cars-card', car: 'ex30', image_height: 5 }), /image_height must be/);
   assert.throws(() => card.setConfig({ type: 'custom:volvo-cars-card', car: 'ex30', image_height: 80.5 }), /image_height must be/);
+});
+
+test('a missing supply is amber, not the red fault treatment', async () => {
+  const { card } = await fixture({ config: COMPACT, state: states('ex30', {
+    'sensor.volvo_ex30_charging_connection_status': entity('connected'),
+    'sensor.volvo_ex30_charging_power_status': entity('no_power_available'),
+  }) });
+  const chip = root(card).querySelector('.chip.warn');
+  assert.match(chip.textContent, /No power/);
+  assert.equal(!!root(card).querySelector('.chip.alert'), false, 'no_power_available is not a fault');
+  assert.match(root(card).querySelector('.alert-line').textContent, /no power available/);
+  assert.equal(root(card).querySelector('.alert-line').className.trim(), 'alert-line warn');
+});
+
+test('the banner is the default layout and leads with the picture', async () => {
+  const { card } = await fixture();
+  assert.ok(root(card).querySelector('.banner'));
+  assert.equal(!!root(card).querySelector('.compact'), false);
+  assert.equal(!!root(card).querySelector('.hero'), false);
+  const media = root(card).querySelector('.banner-media');
+  assert.equal(media.getAttribute('style'), '--banner-h:180px', 'default banner height');
+  assert.ok(media.querySelector('img'));
+  assert.match(text(card), /Volvo EX30/);
+  assert.match(text(card), /41/);
+  assert.match(text(card), /138/);
+  assert.ok(root(card).querySelector('[data-action="lock"]'));
+  assert.equal(!!root(card).querySelector('.details'), false, 'details stay behind the chevron');
+  assert.equal(root(card).querySelectorAll('.row').length, 0, 'the banner shows nothing else');
+});
+
+test('the banner follows image_height and image_size, and shows the details on demand', async () => {
+  const height = async config => root((await fixture({ config })).card).querySelector('.banner-media').getAttribute('style');
+  assert.equal(await height({ type: 'custom:volvo-cars-card', car: 'ex30', image_height: 240 }), '--banner-h:240px');
+  assert.equal(await height({ type: 'custom:volvo-cars-card', car: 'ex30', image_size: 'large' }), '--banner-h:230px');
+  assert.equal(await height({ type: 'custom:volvo-cars-card', car: 'ex30', image_size: 'small' }), '--banner-h:140px');
+  const { card } = await fixture();
+  action(card, 'disclosure').click(); await settle(card);
+  assert.ok(root(card).querySelector('.details'));
+  assert.match(text(card), /All closed/);
+});
+
+test('without a picture the banner falls back to the identity band', async () => {
+  const { card } = await fixture({ state: states('ex30', { 'device_tracker.volvo_ex30_location': entity('not_home') }) });
+  const media = root(card).querySelector('.banner-media');
+  assert.ok(media.classList.contains('empty'));
+  assert.equal(!!media.querySelector('img'), false);
+  assert.equal((text(card).match(/Volvo EX30/g) ?? []).length, 1);
+  assert.match(text(card), /41/);
+  assert.ok(media.querySelector('[data-action="lock"]'));
+});
+
+test('a connected cable means the charge port is open, so the sensor is not echoed', async () => {
+  // The live XC40 case: plugged in while tank_lid still reports closed.
+  const { card } = await fixture({ config: COMPACT, state: states('ex30', {
+    'sensor.volvo_ex30_charging_connection_status': entity('connected'),
+    'sensor.volvo_ex30_charging_type': entity('ac'),
+    'sensor.volvo_ex30_charging_power_status': entity('ok'),
+    'binary_sensor.volvo_ex30_tank_lid': entity('off'),
+  }) });
+  assert.equal(!!root(card).querySelector('.chip.warn'), false, 'no port nag while plugged in');
+  assert.doesNotMatch(text(card), /charge port open/i);
+  action(card, 'disclosure').click(); await settle(card);
+  assert.match(text(card), /Charge port sensor reports closed while a cable is connected/);
+  assert.doesNotMatch(text(card), /Doors, windows and the charge port are shut/, 'never claims the port is shut');
+  const note = [...root(card).querySelectorAll('.row')].find(row => /Charge port sensor/.test(row.textContent));
+  const seen = [];
+  card.addEventListener('hass-more-info', event => seen.push(event.detail.entityId));
+  note.click(); await settle(card);
+  assert.deepEqual(seen, ['binary_sensor.volvo_ex30_tank_lid'], 'the port entity is available for more-info');
+});
+
+test('a connected cable with the port sensor open is expected, not a nag', async () => {
+  const { card } = await fixture({ config: COMPACT, state: states('ex30', {
+    'sensor.volvo_ex30_charging_connection_status': entity('connected'),
+    'sensor.volvo_ex30_charging_power_status': entity('ok'),
+    'binary_sensor.volvo_ex30_tank_lid': entity('on'),
+  }) });
+  assert.equal(!!root(card).querySelector('.chip.warn'), false);
+  assert.doesNotMatch(text(card), /charge port open/i);
+  action(card, 'disclosure').click(); await settle(card);
+  assert.doesNotMatch(text(card), /Charge port sensor reports/);
+  assert.match(text(card), /All closed/);
+  assert.match(text(card), /Doors and windows are shut\./);
+});
+
+test('an unplugged car still reports an open charge port as an opening', async () => {
+  const { card } = await fixture({ config: COMPACT, state: states('ex30', { 'binary_sensor.volvo_ex30_tank_lid': entity('on') }) });
+  const chip = root(card).querySelector('.chip.warn');
+  assert.match(chip.textContent, /Charge port open/);
+  assert.equal(!!root(card).querySelector('.chip.alert'), false);
+  action(card, 'disclosure').click(); await settle(card);
+  assert.match(text(card), /Charge port — charge port open/);
+  assert.doesNotMatch(text(card), /All closed/);
+});
+
+test('an unplugged car with everything shut says so, including the port', async () => {
+  const { card } = await fixture({ config: COMPACT });
+  assert.equal(root(card).querySelectorAll('.chip').length, 0);
+  action(card, 'disclosure').click(); await settle(card);
+  assert.match(text(card), /All closed/);
+  assert.match(text(card), /Doors, windows and the charge port are shut\./);
 });

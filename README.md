@@ -1,6 +1,6 @@
 # Volvo Cars Card
 
-A calm, car-first Home Assistant card for the official Volvo integration, in the Space Hub design language used by the other bitosome cards. One card shows one car as a **single dense status row** — thumbnail, name, battery and range, the chips that matter, and the lock — and expands only when something needs attention.
+A calm, car-first Home Assistant card for the official Volvo integration, in the Space Hub design language used by the other bitosome cards. One card shows one car: by default the **picture leads** as a banner with only the essentials on a scrim, and everything else stays behind a chevron. `layout: compact` is a single dense 92 px row, and `layout: full` is the larger hero card.
 
 It reads the Volvo integration's entities and **only acts when you press something** — nothing is sent to the car while the dashboard is open, and a missing or unavailable entity is shown as unavailable instead of being guessed.
 
@@ -16,7 +16,7 @@ Manual install: build with `npm ci && npm run build`, copy `dist/volvo-cars-card
 ```yaml
 type: custom:volvo-cars-card
 car: ex30                 # everything below is derived from this
-layout: compact           # compact (default) is one dense row; full is the hero layout
+layout: banner            # banner (default) leads with the picture; compact is one row; full is the hero
 name: Volvo EX30          # optional; defaults to the lock's own name
 image: /api/image/serve/cfc5e4693a59de8d2a662b2391509297/original
 show: [charging, openings, actions]   # optional; this is the default
@@ -31,11 +31,11 @@ Optional keys:
 | `name` | Display name. Defaults to the lock entity's friendly name without “Lock”. |
 | `image` | Picture URL. Defaults to the `entity_picture` of `image_entity`. |
 | `image_entity` | Entity whose picture is used. Defaults to the car's `device_tracker.…_location`. |
-| `image_size` | `small` (96×54), `medium` (**128×72**, default) or `large` (160×90). |
-| `image_height` | Explicit thumbnail height in pixels (32–200), overriding `image_size`; the width follows the 16:9 car pictures. |
+| `image_size` | `small`, `medium` (default) or `large`. Banner: 140 / **180** / 230 px tall. Compact thumbnail: 96×54 / **128×72** / 160×90. |
+| `image_height` | Explicit picture height in pixels (32–260), overriding `image_size`; the compact thumbnail derives its width from the 16:9 car pictures. |
 | `entities` | Per-slot overrides, e.g. `{lock: lock.other, battery: sensor.other_battery}`. Slots: `lock`, `battery`, `range`, `odometer`, `charging_connection`, `charging_status`, `charging_power`, `charging_power_status`, `charging_type`, `charging_time`, `charging_target`. |
 | `show` | Which detail rows the disclosure can show: `charging`, `openings`, `actions`, `odometer`. Defaults to the first three. |
-| `layout` | `compact` (default) or `full`. `full` is the hero card with the large picture and the rows always open. |
+| `layout` | `banner` (default), `compact` or `full`. `full` is the hero card with the rows always open; `compact` is the 92 px row. |
 
 ### Pictures
 
@@ -43,7 +43,9 @@ The Volvo integration exposes no image entity. Uploaded pictures live in Home As
 
 ## What it shows
 
-**Compact (default)** — one row, four zones:
+**Banner (default)** — the picture fills the card at **180 px** tall (cropped 16:9, so a 1920×1080 upload shows the car rather than shrinking inside the frame), with the name, battery figure and level bar (charge-target marker included), range, lock pill and chips on a soft scrim. Nothing else: the detail rows stay behind the chevron. With no picture configured it falls back to the identity band. Measured at 500 px wide: **180 px**, the same whether or not a fault is showing.
+
+**Compact** — one row, four zones:
 
 - a **128×72** thumbnail cropped from the car picture (`object-fit: cover`, so a 1920×1080 upload crops to the car), or an MDI car icon when no picture is configured;
 - the name, the battery percentage as the figure that matters with a thin level bar and the charge-target marker, and distance-to-empty beside it;
@@ -54,13 +56,14 @@ Nothing abnormal means nothing extra: a normal car is a single row (**92 px** at
 
 Everything else is behind the chevron: the `show` rows (charging detail, the full openings list, odometer, quick actions) are collapsed until you expand them. Tapping the identity opens more-info for the battery, the thumbnail for the car's location.
 
-**`layout: full`** is the hero card — large picture, battery and range as figures, and the rows always open (227 px at 500 px wide).
+**`layout: full`** is the hero card — large 16:9 picture, battery and range as figures, and the rows always open (398 px at 500 px wide with a picture).
 
 In both layouts:
 
 - **Charging** — plugged in: state, power and time to target. Not plugged in: a single quiet line. A charger `fault` or `no_power_available` is surfaced as a fault, never as normal charging, and only while the car is actually plugged in.
 - **Openings** — quiet when everything is shut, and always informational (amber, never the fault treatment). When something is open only those items are named; the tank lid is labelled **Charge port** because that is what it is on these cars. An open charge port is an opening like any other: it never produces a fault chip, a fault line or the red glow.
-- **Faults** — red is reserved for what the car reports through its charging sensors (`fault`, and `no_power_available` while actually plugged in). The wording always attributes it to the car, so an open port can never read as its cause.
+- **Faults** — red is reserved for what the car reports through its charging sensors. A `fault` is red (*Charging fault*); `no_power_available` while plugged in is amber (*No power*), not a fault. The wording always attributes the reading to the car, so an open port can never read as its cause.
+- **A connected cable means the port is open.** Volvo's charge-port sensor lags plug events — it can report closed on a car with a cable in — so while `charging_connection_status` is `connected` the port is never treated as an opening (an open flap there is expected, not a nag) and its "closed" is never used to claim everything is shut. The contradiction is surfaced instead, in the detail tile: *"Charge port sensor reports closed while a cable is connected."*, with the port's entity for more-info. While unplugged the sensor is trusted, so an open port is reported as an ordinary amber opening.
 - **Quick actions** — flash, honk, honk & flash, precondition and stop precondition. Each button appears only when its entity is configured in the integration and available, so an unsupported car just shows fewer buttons.
 
 ## Design

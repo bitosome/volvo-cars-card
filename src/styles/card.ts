@@ -79,8 +79,8 @@ export const cardStyles = css`
   .row-icon.open { color: var(--status-warn-color); background: color-mix(in srgb,var(--status-warn-color) 14%,transparent); }
   .row-icon.ok { color: var(--status-success-color); background: color-mix(in srgb,var(--status-success-color) 12%,transparent); }
   .row-text { flex: 1; min-width: 0; }
-  .row-title { font-size: 14px; font-weight: 550; overflow-wrap: anywhere; }
-  .row-sub { font-size: 12px; color: var(--car-muted); margin-top: 2px; overflow-wrap: anywhere; }
+  .row-title { display: block; font-size: 14px; font-weight: 550; overflow-wrap: anywhere; }
+  .row-sub { display: block; font-size: 12px; color: var(--car-muted); margin-top: 2px; overflow-wrap: anywhere; }
   .row[role="button"] { cursor: pointer; }
   .row[role="button"]:hover { background: color-mix(in srgb,var(--primary-text-color) 4%,transparent); }
   .section { padding: 14px clamp(14px,4cqw,20px); }
@@ -92,6 +92,41 @@ export const cardStyles = css`
   .item ha-icon { width: 18px; height: 18px; --mdc-icon-size: 18px; flex-basis: 18px; color: var(--status-warn-color); }
   .item.charge ha-icon { color: var(--status-alert-color); }
   .item span { overflow-wrap: anywhere; }
+  /* ---- banner layout: the picture leads, information sits on a scrim ---- */
+  .banner { padding: 0; overflow: hidden; }
+  .banner-media { position: relative; display: block; width: 100%; height: var(--banner-h, 180px); background: color-mix(in srgb,var(--primary-text-color) 6%,transparent); }
+  .banner-media.empty { height: auto; min-height: 104px; }
+  .banner-media img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .banner-scrim { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: space-between; gap: 8px; padding: 12px 14px; background: linear-gradient(180deg, rgba(0,0,0,.44) 0%, rgba(0,0,0,.06) 40%, rgba(0,0,0,.62) 100%); }
+  .banner-media.empty .banner-scrim { position: static; background: none; }
+  .banner-top { display: flex; align-items: flex-start; gap: 10px; }
+  .banner-top .identity-text { flex: 1; min-width: 0; }
+  .banner-top .name { color: #fff; text-shadow: 0 1px 10px rgba(0,0,0,.5); }
+  .banner-top .eyebrow { color: rgba(255,255,255,.78); }
+  .banner-bottom { display: grid; gap: 6px; }
+  .banner-figures { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+  .banner-value { font-size: clamp(26px,7cqw,32px); font-weight: 680; letter-spacing: -.03em; font-variant-numeric: tabular-nums; line-height: 1; color: #fff; text-shadow: 0 1px 10px rgba(0,0,0,.5); }
+  .banner-value .figure-unit { font-size: 14px; }
+  .banner-range { font-size: 12.5px; color: rgba(255,255,255,.9); font-variant-numeric: tabular-nums; white-space: nowrap; text-shadow: 0 1px 8px rgba(0,0,0,.5); }
+  .banner-level { position: relative; height: 4px; width: 100%; max-width: 260px; border-radius: 999px; overflow: hidden; background: rgba(255,255,255,.28); }
+  .banner-level > span { display: block; height: 100%; border-radius: inherit; background: #fff; transition: width .3s; }
+  .banner-level.target { position: absolute; top: 0; bottom: 0; width: 2px; background: rgba(0,0,0,.45); }
+  .banner-media.empty .banner-value, .banner-media.empty .banner-range { color: var(--primary-text-color); text-shadow: none; }
+  .banner-media.empty .name { color: var(--primary-text-color); text-shadow: none; }
+  .banner-media.empty .eyebrow { color: var(--car-muted); }
+  .banner-media.empty .banner-level { background: color-mix(in srgb,var(--primary-text-color) 14%,transparent); }
+  .banner-media.empty .banner-level > span { background: var(--car-accent); }
+  .banner .chips { justify-content: flex-start; }
+  .banner-note { margin: 0; font-size: 12px; line-height: 1.4; color: rgba(255,255,255,.92); text-shadow: 0 1px 8px rgba(0,0,0,.5); overflow-wrap: anywhere; }
+  .banner-note.warn { color: #ffd08a; }
+  .banner-note.alert { color: #ffb3ae; }
+  .banner-media.empty .banner-note { color: var(--car-muted); text-shadow: none; }
+  .banner-media.empty .banner-note.warn { color: color-mix(in srgb,var(--status-warn-color) 74%,var(--primary-text-color) 26%); }
+  .banner-media.empty .banner-note.alert { color: color-mix(in srgb,var(--status-alert-color) 76%,var(--primary-text-color) 24%); }
+  .banner .lock-pill { border-color: rgba(255,255,255,.34); background: rgba(0,0,0,.32); color: #fff; }
+  .banner .lock-pill.unlocked { color: #ffb3ae; border-color: rgba(229,57,53,.7); }
+  .banner .disclosure { border-color: rgba(255,255,255,.34); background: rgba(0,0,0,.32); color: #fff; }
+
   /* ---- compact layout: one dense status row ---- */
   /* Thumbnail, identity and controls share the first line; chips get a full-width
      line of their own so neither the car's name nor a chip label is ever clipped. */

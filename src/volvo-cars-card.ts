@@ -251,13 +251,16 @@ export class VolvoCarsCard extends LitElement {
   }
 
   private openingsRow(car: ResolvedCar) {
-    const open = car.openings
-      .map(item => ({ ...item, state: this.entity(item.entity) }))
-      .filter(item => item.state?.state === 'on');
+    const plugged = this.isPlugged(car);
+    const open = this.openItems(car, plugged);
+    const note = this.portNote(car, plugged);
+    const noteRow = note ? html`<div class="row" role="button" tabindex="0" @click=${() => this.moreInfo(`binary_sensor.${car.prefix}tank_lid`)}>
+      <span class="row-icon warn"><ha-icon .icon=${'mdi:help-circle-outline'}></ha-icon></span>
+      <span class="row-text"><span class="row-title">Charge port</span><span class="row-sub">${note}</span></span></div>` : nothing;
     if (!open.length) {
       return html`<div class="row"><span class="row-icon ok"><ha-icon .icon=${'mdi:check-circle-outline'}></ha-icon></span>
         <span class="row-text"><span class="row-title">All closed</span>
-        <span class="row-sub">Doors, windows and the charge port are shut.</span></span></div>`;
+        <span class="row-sub">${plugged ? 'Doors and windows are shut.' : 'Doors, windows and the charge port are shut.'}</span></span></div>${noteRow}`;
     }
     return html`<div class="section">
       <div class="section-heading"><h3>Open</h3><span class="hint">${open.length === 1 ? '1 opening' : `${open.length} openings`}</span></div>
@@ -265,6 +268,7 @@ export class VolvoCarsCard extends LitElement {
           @click=${() => this.moreInfo(item.entity)}
           @keydown=${(event: KeyboardEvent) => { if (event.key === 'Enter') this.moreInfo(item.entity); }}>
         <ha-icon .icon=${item.icon}></ha-icon><span>${item.label}${item.key === 'tank_lid' ? ' — charge port open' : ' open'}</span></li>`)}</ul>
+      ${noteRow}
     </div>`;
   }
 
@@ -312,10 +316,71 @@ export class VolvoCarsCard extends LitElement {
     </ha-card>`;
   }
 
-  private openItems(car: ResolvedCar) {
+  private openItems(car: ResolvedCar, plugged: boolean) {
     return car.openings
       .map(item => ({ ...item, state: this.entity(item.entity) }))
+      .filter(item => !(plugged && item.key === 'tank_lid'))
       .filter(item => item.state?.state === 'on');
+  }
+
+  /** True while the cable is in, when the charge port is open by definition. */
+  private isPlugged(car: ResolvedCar) { return this.entity(car.entities.charging_connection)?.state === 'connected'; }
+
+  /**
+   * The charge-port sensor often lags a plug event: it can report closed on a car with
+   * a cable in. That contradiction belongs in the detail tile — never a claim that the
+   * port is shut, and never a fault.
+   */
+  private portNote(car: ResolvedCar, plugged: boolean): string | undefined {
+    if (!plugged) return undefined;
+    const port = this.entity(`binary_sensor.${car.prefix}tank_lid`);
+    if (!port || !available(port) || !['off', 'closed'].includes(port.state)) return undefined;
+    return 'Charge port sensor reports closed while a cable is connected.';
+  }
+
+  /**
+   * Everything the chips and the single line are derived from, shared by the banner and
+   * the compact row so both layouts can never disagree about the car's state.
+   */
+  private signals(car: ResolvedCar) {
+    const connection = this.entity(car.entities.charging_connection);
+    const condition = this.entity(car.entities.charging_power_status);
+    const status = this.entity(car.entities.charging_status);
+    const plugged = connection?.state === 'connected';
+    const watts = numeric(this.entity(car.entities.charging_power)) ?? 0;
+    const minutes = numeric(this.entity(car.entities.charging_time)) ?? 0;
+    const charging = plugged && status?.state === 'charging';
+    const problem = plugged && available(condition) && !POWER_STATUS_OK.has(condition!.state) ? condition!.state : undefined;
+    const open = this.openItems(car, plugged);
+    const chips = [
+      plugged ? { icon: charging ? 'mdi:battery-charging' : 'mdi:power-plug', label: watts > 0 ? `${(watts / 1000).toFixed(watts >= 100000 ? 0 : 1)} kW` : charging ? 'Charging' : 'Plugged', cls: charging ? 'charging' : '' } : undefined,
+      // An opening is informational: amber, never the fault treatment.
+      open.length ? { icon: open.length === 1 ? open[0].icon : 'mdi:car-door', label: open.length === 1 ? `${open[0].label} open` : `${open.length} open`, cls: 'warn' } : undefined,
+      problem === 'fault' ? { icon: 'mdi:alert-circle-outline', label: 'Charging fault', cls: 'alert' } : undefined,
+      problem && problem !== 'fault' ? { icon: 'mdi:alert-outline', label: 'No power', cls: 'warn' } : undefined,
+    ].filter((chip): chip is { icon: string; label: string; cls: string } => !!chip);
+    const line = problem
+      ? { text: problem === 'fault'
+            ? 'The car reports a charging fault — check the cable and the charging station.'
+            : 'The car reports no power available at the charging station.', cls: problem === 'fault' ? 'alert' : 'warn' }
+      : open.length > 1
+        // One opening is already named on its chip; only several need this line.
+        ? { text: `${open.slice(0, 3).map(item => item.key === 'tank_lid' ? 'charge port' : item.label.toLowerCase()).join(', ')} open${open.length > 3 ? ` and ${open.length - 3} more` : ''}.`, cls: 'warn' }
+        : charging && minutes > 0
+          ? { text: `${minutes >= 60 ? `${Math.floor(minutes / 60)} h ${Math.round(minutes % 60)} min` : `${Math.round(minutes)} min`} to ${numeric(this.entity(car.entities.charging_target)) !== undefined ? `${Math.round(numeric(this.entity(car.entities.charging_target))!)}%` : 'target'}${watts > 0 ? ` at ${(watts / 1000).toFixed(watts >= 100000 ? 0 : 1)} kW` : ''}.`, cls: '' }
+          : undefined;
+    return { plugged, watts, minutes, charging, problem, open, chips, line };
+  }
+
+  /** The canonical amber/red pulse for a signal line. */
+  private pulseFor(line?: { cls: string }) {
+    return line?.cls === 'alert' ? { weak: 'rgba(229,57,53,.30)', strong: 'rgba(229,57,53,.55)' }
+      : line?.cls === 'warn' ? { weak: 'rgba(255,152,0,.28)', strong: 'rgba(255,152,0,.50)' }
+        : undefined;
+  }
+
+  private chipList(chips: Array<{ icon: string; label: string; cls: string }>) {
+    return html`<div class="chips">${chips.map(chip => html`<span class="chip ${chip.cls}"><ha-icon .icon=${chip.icon}></ha-icon>${chip.label}</span>`)}</div>`;
   }
 
   /**
@@ -328,42 +393,15 @@ export class VolvoCarsCard extends LitElement {
     const battery = numeric(this.entity(car.entities.battery));
     const range = this.entity(car.entities.range);
     const target = numeric(this.entity(car.entities.charging_target));
-    const connection = this.entity(car.entities.charging_connection);
-    const condition = this.entity(car.entities.charging_power_status);
-    const status = this.entity(car.entities.charging_status);
-    const plugged = connection?.state === 'connected';
-    const watts = numeric(this.entity(car.entities.charging_power)) ?? 0;
-    const minutes = numeric(this.entity(car.entities.charging_time)) ?? 0;
-    const charging = plugged && status?.state === 'charging';
-    const problem = plugged && available(condition) && !POWER_STATUS_OK.has(condition!.state) ? condition!.state : undefined;
-    const open = this.openItems(car);
+    const { chips, line } = this.signals(car);
     const image = hassUrl(this.hass, car.image ?? '');
     const unlocked = lock?.state === 'unlocked';
     const jammed = !!lock && available(lock) && !['locked', 'unlocked', 'locking', 'unlocking'].includes(lock.state);
     const busy = this.pending === car.entities.lock;
     const lockLabel = !pressable(lock) ? 'Lock unavailable' : busy ? (lock?.state === 'locked' ? 'Unlocking' : 'Locking') : lock?.state === 'locked' ? 'Unlock' : 'Lock';
-    const chips = [
-      plugged ? { icon: charging ? 'mdi:battery-charging' : 'mdi:power-plug', label: watts > 0 ? `${(watts / 1000).toFixed(watts >= 100000 ? 0 : 1)} kW` : charging ? 'Charging' : 'Plugged', cls: charging ? 'charging' : '' } : undefined,
-      // An opening is informational: amber, never the fault treatment.
-      open.length ? { icon: open.length === 1 ? open[0].icon : 'mdi:car-door', label: open.length === 1 ? `${open[0].label} open` : `${open.length} open`, cls: 'warn' } : undefined,
-      problem ? { icon: 'mdi:alert-circle-outline', label: 'Charging fault', cls: 'alert' } : undefined,
-    ].filter((chip): chip is { icon: string; label: string; cls: string } => !!chip);
-    const line = problem
-      ? { text: problem === 'fault'
-            ? 'The car reports a charging fault — check the cable and the charging station.'
-            : 'The car reports no power available at the charging station.', cls: problem === 'fault' ? 'alert' : 'warn' }
-      : open.length > 1
-        // One opening is already named on its chip; only several need this line.
-        ? { text: `${open.slice(0, 3).map(item => item.key === 'tank_lid' ? 'charge port' : item.label.toLowerCase()).join(', ')} open${open.length > 3 ? ` and ${open.length - 3} more` : ''}.`, cls: 'warn' }
-        : charging && minutes > 0
-          ? { text: `${minutes >= 60 ? `${Math.floor(minutes / 60)} h ${Math.round(minutes % 60)} min` : `${Math.round(minutes)} min`} to ${target !== undefined ? `${Math.round(target)}%` : 'target'}${watts > 0 ? ` at ${(watts / 1000).toFixed(watts >= 100000 ? 0 : 1)} kW` : ''}.`, cls: '' }
-          : undefined;
     // Amber for an opening, red only for what the car itself reports. The pulse
     // colours ride on the canonical under-tile glow layer.
-    const pulse = line?.cls === 'alert' ? { weak: 'rgba(229,57,53,.30)', strong: 'rgba(229,57,53,.55)' }
-      : line?.cls === 'warn' ? { weak: 'rgba(255,152,0,.28)', strong: 'rgba(255,152,0,.50)' }
-        : undefined;
-    const glow = buildGlow(pulse, 'static', !!pulse);
+    const glow = buildGlow(this.pulseFor(line), 'static', !!line);
     return html`<ha-card>
       <div class="root">
         <div class="tile-wrap">
@@ -394,8 +432,71 @@ export class VolvoCarsCard extends LitElement {
                       aria-label=${this.expanded ? 'Hide details' : 'Show details'} @click=${() => { this.expanded = !this.expanded; }}>
                 <ha-icon .icon=${'mdi:chevron-down'}></ha-icon><span class="sr-only">Details</span></button>` : nothing}
             </div>
-            ${chips.length ? html`<div class="chips">${chips.map(chip => html`<span class="chip ${chip.cls}"><ha-icon .icon=${chip.icon}></ha-icon>${chip.label}</span>`)}</div>` : nothing}
+            ${chips.length ? this.chipList(chips) : nothing}
             ${line ? html`<p class="alert-line ${line.cls}" role="status">${line.text}</p>` : nothing}
+          </section>
+        </div>
+        ${this.expanded ? html`<div class="tile-wrap">${buildGlow(undefined, 'static', false).overlay}
+          <section class="surface details" aria-label="Car details">${this.showRows(car)}</section></div>` : nothing}
+      </div>
+    </ha-card>`;
+  }
+
+  /**
+   * The banner: the picture leads at full width, with only the essentials on a scrim so
+   * they stay legible on any photograph. Everything else stays behind the chevron.
+   */
+  private renderBanner(car: ResolvedCar) {
+    const lock = this.entity(car.entities.lock);
+    const battery = numeric(this.entity(car.entities.battery));
+    const range = this.entity(car.entities.range);
+    const target = numeric(this.entity(car.entities.charging_target));
+    const { chips, line } = this.signals(car);
+    const image = hassUrl(this.hass, car.image ?? '');
+    const unlocked = lock?.state === 'unlocked';
+    const jammed = !!lock && available(lock) && !['locked', 'unlocked', 'locking', 'unlocking'].includes(lock.state);
+    const busy = this.pending === car.entities.lock;
+    const lockLabel = !pressable(lock) ? 'Lock unavailable' : busy ? (lock?.state === 'locked' ? 'Unlocking' : 'Locking') : lock?.state === 'locked' ? 'Unlock' : 'Lock';
+    const glow = buildGlow(this.pulseFor(line), 'static', !!line);
+    return html`<ha-card>
+      <div class="root">
+        <div class="tile-wrap">
+          <div class="glow-under" style=${glow.style}>${glow.overlay}</div>
+          <section class="surface banner" aria-label=${`${car.name} status`}>
+            <div class="banner-media ${image ? '' : 'empty'}" style=${`--banner-h:${car.bannerHeight}px`}>
+              ${image ? html`<img src=${image} alt="" referrerpolicy="no-referrer" />` : nothing}
+              <div class="banner-scrim">
+                <div class="banner-top">
+                  <button class="compact-identity" data-action="identity" aria-label=${`${car.name} battery ${battery ?? 'unavailable'} percent`} @click=${() => this.moreInfo(car.entities.battery)}>
+                    <span class="eyebrow">Volvo</span>
+                    <span class="name">${car.name}</span>
+                  </button>
+                  <div class="compact-controls">
+                    <button class="lock-pill ${unlocked ? 'unlocked' : jammed ? 'alert' : ''}" data-action="lock"
+                            ?disabled=${!pressable(lock) || busy} aria-label=${lockLabel}
+                            @click=${() => lock && this.lockAction(car, lock)}>
+                      <ha-icon .icon=${busy ? 'mdi:progress-clock' : jammed ? 'mdi:lock-alert' : lock?.state === 'locked' ? 'mdi:lock' : 'mdi:lock-open-variant'}></ha-icon>
+                      <span class="sr-only">${lockLabel}</span>
+                    </button>
+                    ${this.showRows(car).length ? html`<button class="disclosure" data-action="disclosure" aria-expanded=${this.expanded ? 'true' : 'false'}
+                            aria-label=${this.expanded ? 'Hide details' : 'Show details'} @click=${() => { this.expanded = !this.expanded; }}>
+                      <ha-icon .icon=${'mdi:chevron-down'}></ha-icon><span class="sr-only">Details</span></button>` : nothing}
+                  </div>
+                </div>
+                <div class="banner-bottom">
+                  <div class="banner-figures">
+                    <span class="banner-value">${battery === undefined ? '—' : Math.round(battery)}<span class="figure-unit">%</span></span>
+                    <span class="banner-range">${available(range) ? `${range!.state} ${range?.attributes?.unit_of_measurement ?? 'km'}` : ''}</span>
+                  </div>
+                  <span class="banner-level" role="img" aria-label=${`Battery level ${battery ?? 'unknown'} percent`}>
+                    <span style=${`width:${Math.min(100, Math.max(0, battery ?? 0))}%`}></span>
+                    ${target !== undefined ? html`<span class="banner-level target" style=${`left:${Math.min(100, Math.max(0, target))}%`}></span>` : nothing}
+                  </span>
+                  ${chips.length ? this.chipList(chips) : nothing}
+                  ${line ? html`<p class="banner-note ${line.cls}" role="status">${line.text}</p>` : nothing}
+                </div>
+              </div>
+            </div>
           </section>
         </div>
         ${this.expanded ? html`<div class="tile-wrap">${buildGlow(undefined, 'static', false).overlay}
@@ -418,7 +519,9 @@ export class VolvoCarsCard extends LitElement {
     const car = this.car;
     if (!car) return html`<ha-card><div class="section"><div class="row-title">Choose the car</div>
       <p class="hint">Open the card settings and select the car, for example <code>ex30</code>.</p></div></ha-card>`;
-    return car.layout === 'full' ? this.renderFull(car) : this.renderCompact(car);
+    return car.layout === 'full' ? this.renderFull(car)
+      : car.layout === 'compact' ? this.renderCompact(car)
+        : this.renderBanner(car);
   }
 }
 
@@ -430,4 +533,4 @@ cardWindow.customCards.push({
   description: 'Battery, range, lock, openings and charging for one Volvo, in the Space Hub style.',
   preview: true,
 });
-console.info('%c VOLVO CARS CARD %c 0.3.0 ', 'background:#8fb4ff;color:#181a27;font-weight:700', 'background:#292b3e;color:#dedff5');
+console.info('%c VOLVO CARS CARD %c 0.4.0 ', 'background:#8fb4ff;color:#181a27;font-weight:700', 'background:#292b3e;color:#dedff5');
