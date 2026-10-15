@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Volvo Cars Card preview</title>
+<!--
+  Offline preview: mocked Home Assistant states, no connection to Home Assistant and
+  no command is ever sent. Build first (`npm run build`), then serve the repository
+  root (for example `python3 -m http.server 8767`) and open /preview/.
+-->
+<style>
+  :root { color-scheme: dark; --card-background-color:#20222f; --ha-card-background:#20222f; --primary-text-color:#dedff5; --secondary-text-color:#acb1cc; --divider-color:rgba(255,255,255,.08); --accent-color:#8fb4ff; }
+  body { margin:0; padding:24px; background:#171923; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; display:grid; gap:20px; grid-template-columns:repeat(auto-fit,minmax(340px,420px)); justify-content:center; align-items:start; }
+  .frame { display:grid; gap:8px; }
+  .frame h2 { font-size:13px; color:#acb1cc; font-weight:600; margin:0; }
+</style>
+</head>
+<body>
+<div class="frame"><h2>EX30 — plugged in, charger fault, charge port open</h2><volvo-cars-card id="ex30"></volvo-cars-card></div>
+<div class="frame"><h2>XC40 — unplugged and locked</h2><volvo-cars-card id="xc40"></volvo-cars-card></div>
+<script type="module">
+  await import('../dist/volvo-cars-card.js');
+  const entity = (state, attributes = {}) => ({ state, attributes, last_changed: new Date().toISOString() });
+  const OPEN = ['door_front_left','door_front_right','door_rear_left','door_rear_right','window_front_left','window_front_right','window_rear_left','window_rear_right','bonnet','sunroof','tailgate','tank_lid'];
+
+  function car(car, states) {
+    const base = {
+      [`lock.volvo_${car}_lock`]: entity('locked', { friendly_name: `Volvo ${car.toUpperCase()} Lock` }),
+      [`sensor.volvo_${car}_battery`]: entity('41', { unit_of_measurement: '%' }),
+      [`sensor.volvo_${car}_distance_to_empty_battery`]: entity('138', { unit_of_measurement: 'km' }),
+      [`sensor.volvo_${car}_odometer`]: entity('36057', { unit_of_measurement: 'km' }),
+      [`sensor.volvo_${car}_charging_connection_status`]: entity('disconnected'),
+      [`sensor.volvo_${car}_charging_status`]: entity('idle'),
+      [`sensor.volvo_${car}_charging_power`]: entity('0', { unit_of_measurement: 'W' }),
+      [`sensor.volvo_${car}_charging_power_status`]: entity('no_power_available'),
+      [`sensor.volvo_${car}_estimated_charging_time`]: entity('0', { unit_of_measurement: 'min' }),
+      [`sensor.volvo_${car}_target_battery_charge_level`]: entity('90', { unit_of_measurement: '%' }),
+      [`device_tracker.volvo_${car}_location`]: entity('not_home'),
+    };
+    for (const key of OPEN) base[`binary_sensor.volvo_${car}_${key}`] = entity('off');
+    for (const key of ['flash','honk','honk_flash','start_climatisation','stop_climatisation']) base[`button.volvo_${car}_${key}`] = entity('unknown');
+    return Object.assign(base, states);
+  }
+
+  const hass = {
+    states: {
+      ...car('ex30', {
+        'lock.volvo_ex30_lock': entity('unlocked', { friendly_name: 'Volvo EX30 Lock' }),
+        'sensor.volvo_ex30_battery': entity('63', { unit_of_measurement: '%' }),
+        'sensor.volvo_ex30_distance_to_empty_battery': entity('212', { unit_of_measurement: 'km' }),
+        'sensor.volvo_ex30_charging_connection_status': entity('connected'),
+        'sensor.volvo_ex30_charging_status': entity('charging'),
+        'sensor.volvo_ex30_charging_power': entity('11200', { unit_of_measurement: 'W' }),
+        'sensor.volvo_ex30_charging_power_status': entity('fault'),
+        'sensor.volvo_ex30_estimated_charging_time': entity('121', { unit_of_measurement: 'min' }),
+        'sensor.volvo_ex30_target_battery_charge_level': entity('90', { unit_of_measurement: '%' }),
+        'binary_sensor.volvo_ex30_tank_lid': entity('on'),
+        'binary_sensor.volvo_ex30_door_front_left': entity('on'),
+      }),
+      ...car('xc40', { 'sensor.volvo_xc40_battery': entity('70', { unit_of_measurement: '%' }) }),
+    },
+    callService: async (domain, service, data) => console.info('preview would call', domain, service, data),
+    hassUrl: path => path,
+  };
+
+  for (const [id, config] of [['ex30', { car: 'ex30', name: 'Volvo EX30', show: ['charging','openings','actions'] }], ['xc40', { car: 'xc40', name: 'Volvo XC40', show: ['charging','openings','actions','odometer'] }]]) {
+    const card = document.getElementById(id);
+    card.setConfig({ type: 'custom:volvo-cars-card', ...config });
+    card.hass = hass;
+  }
+</script>
+</body>
+</html>

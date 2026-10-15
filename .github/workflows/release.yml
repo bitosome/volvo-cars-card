@@ -1,0 +1,33 @@
+name: Release
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - name: Verify release version and HACS bundle
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import { readFileSync, statSync } from 'node:fs';
+          const json = path => JSON.parse(readFileSync(path, 'utf8'));
+          const version = json('package.json').version;
+          assert.equal(process.env.GITHUB_REF_NAME, `v${version}`);
+          const filename = json('hacs.json').filename;
+          assert.equal(filename, 'volvo-cars-card.js');
+          assert.ok(statSync(`dist/${filename}`).size > 0);
+          NODE
+      - name: Publish tested artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/volvo-cars-card.js --generate-notes --verify-tag

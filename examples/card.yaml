@@ -1,0 +1,13 @@
+# Two cards, one per car. Every entity is derived from the car key, so the only
+# required key is `car`.
+type: custom:volvo-cars-card
+car: ex30
+name: Volvo EX30
+image: /api/image/serve/f31713098a298d1775d4b2e181ddfccd/original
+show: [charging, openings, actions]
+---
+type: custom:volvo-cars-card
+car: xc40
+name: Volvo XC40
+image: /api/image/serve/cfc5e4693a59de8d2a662b2391509297/original
+show: [charging, openings, actions, odometer]
