@@ -52,7 +52,9 @@ export const cardStyles = css`
   .figure.secondary .figure-value { font-size: clamp(19px,5cqw,22px); }
   .level { position: relative; height: 5px; margin: 12px clamp(14px,4cqw,20px) 0; border-radius: 999px; overflow: hidden; background: color-mix(in srgb,var(--primary-text-color) 12%,transparent); }
   .level > span { display: block; height: 100%; border-radius: inherit; background: var(--car-accent); transition: width .3s; }
-  .level.target { position: absolute; top: 0; bottom: 0; width: 2px; background: color-mix(in srgb,var(--primary-text-color) 55%,transparent); }
+  /* The charge-target marker: never inherits the track's width, radius or background. */
+  .level-mark { position: absolute; top: 0; bottom: 0; left: 0; width: 2px; min-width: 0; max-width: none; height: auto; border-radius: 0; background: color-mix(in srgb,var(--primary-text-color) 60%,transparent); flex: none; }
+  .banner-media ~ .banner-band .level-mark, .banner-band .level-mark { background: color-mix(in srgb,var(--primary-text-color) 60%,transparent); }
   .hero-foot { display: flex; flex-wrap: wrap; gap: var(--medium-gap); padding: 12px clamp(14px,4cqw,20px) 16px; }
 
   .pill { display: inline-flex; align-items: center; gap: 5px; max-width: 100%; padding: 6px 10px; border-radius: var(--chip-border-radius); font-size: 12px; font-weight: 550; line-height: 1.35; color: var(--car-muted); background: color-mix(in srgb,var(--primary-text-color,#ddd) 6%,transparent); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
@@ -106,7 +108,6 @@ export const cardStyles = css`
   .band-value .figure-unit { font-size: 12px; }
   .band-level { position: relative; flex: 1 1 60px; min-width: 48px; max-width: 200px; height: 3px; border-radius: 999px; background: color-mix(in srgb,var(--primary-text-color) 13%,transparent); }
   .band-level > span { display: block; height: 100%; border-radius: inherit; background: var(--car-accent); transition: width .3s; }
-  .band-level.target { position: absolute; top: 0; bottom: 0; width: 2px; background: color-mix(in srgb,var(--primary-text-color) 55%,transparent); }
   .band-range { font-size: 12px; color: var(--car-muted); font-variant-numeric: tabular-nums; white-space: nowrap; flex: 0 0 auto; }
   .band-status { display: inline-flex; align-items: center; gap: 4px; padding: 4px 9px; border-radius: var(--chip-border-radius); font-size: 11.5px; font-weight: 600; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 40%; color: var(--car-muted); background: color-mix(in srgb,var(--primary-text-color,#ddd) 7%,transparent); }
   .band-status ha-icon { width: 14px; height: 14px; --mdc-icon-size: 14px; flex-basis: 14px; }
@@ -137,7 +138,6 @@ export const cardStyles = css`
   .compact-range { font-size: 12px; color: var(--car-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
   .compact-level { position: relative; height: 3px; width: min(140px, 100%); border-radius: 999px; overflow: hidden; background: color-mix(in srgb,var(--primary-text-color) 12%,transparent); }
   .compact-level > span { display: block; height: 100%; border-radius: inherit; background: var(--car-accent); transition: width .3s; }
-  .compact-level.target { position: absolute; top: 0; bottom: 0; width: 2px; background: color-mix(in srgb,var(--primary-text-color) 55%,transparent); }
   .chips { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 5px; min-width: 0; }
   .chip { display: inline-flex; align-items: center; gap: 3px; padding: 3px 7px; border-radius: var(--chip-border-radius); font-size: 11px; font-weight: 600; line-height: 1.2; color: var(--car-muted); background: color-mix(in srgb,var(--primary-text-color,#ddd) 7%,transparent); font-variant-numeric: tabular-nums; white-space: nowrap; }
   .chip ha-icon { width: 13px; height: 13px; --mdc-icon-size: 13px; flex-basis: 13px; }

@@ -172,7 +172,7 @@ export class VolvoCarsCard extends LitElement {
           </div>
           <div class="level" role="img" aria-label=${`Battery level ${percent ?? 'unknown'} percent`}>
             <span style=${`width:${Math.min(100, Math.max(0, percent ?? 0))}%`}></span>
-            ${target !== undefined ? html`<span class="level target" style=${`left:${Math.min(100, Math.max(0, target))}%`} title=${`Target ${target}%`}></span>` : nothing}
+            ${target !== undefined ? html`<span class="level-mark" style=${`left:${Math.min(100, Math.max(0, target))}%`} title=${`Target ${target}%`}></span>` : nothing}
           </div>
           <div class="hero-foot">
             ${lock
@@ -386,7 +386,7 @@ export class VolvoCarsCard extends LitElement {
     // single opening is already the phrase, so it needs no second line.
     const bannerLine = problem
       ? { text: problem === 'fault'
-            ? 'The car reports a charging fault — check the cable and the charging station.'
+            ? 'The car reports a charging fault.'
             : 'The car reports no power available at the charging station.', cls: problem === 'fault' ? 'alert' : 'warn' }
       : open.length > 1
         ? { text: `${open.slice(0, 3).map(item => item.key === 'tank_lid' ? 'charge port' : item.label.toLowerCase()).join(', ')} open${open.length > 3 ? ` and ${open.length - 3} more` : ''}.`, cls: 'warn' }
@@ -440,7 +440,7 @@ export class VolvoCarsCard extends LitElement {
               </span>
               <span class="compact-level" role="img" aria-label=${`Battery level ${battery ?? 'unknown'} percent`}>
                 <span style=${`width:${Math.min(100, Math.max(0, battery ?? 0))}%`}></span>
-                ${target !== undefined ? html`<span class="compact-level target" style=${`left:${Math.min(100, Math.max(0, target))}%`}></span>` : nothing}
+                ${target !== undefined ? html`<span class="level-mark" style=${`left:${Math.min(100, Math.max(0, target))}%`}></span>` : nothing}
               </span>
             </button>
             <div class="compact-controls">
@@ -498,7 +498,7 @@ export class VolvoCarsCard extends LitElement {
                   <span class="band-value">${battery === undefined ? '—' : Math.round(battery)}<span class="figure-unit">%</span></span>
                   <span class="band-level" role="img" aria-label=${`Battery level ${battery ?? 'unknown'} percent`}>
                     <span style=${`width:${Math.min(100, Math.max(0, battery ?? 0))}%`}></span>
-                    ${target !== undefined ? html`<span class="band-level target" style=${`left:${Math.min(100, Math.max(0, target))}%`}></span>` : nothing}
+                    ${target !== undefined ? html`<span class="level-mark" style=${`left:${Math.min(100, Math.max(0, target))}%`}></span>` : nothing}
                   </span>
                   <span class="band-range">${available(range) ? `${range!.state} ${range?.attributes?.unit_of_measurement ?? 'km'}` : ''}</span>
                 </span>
