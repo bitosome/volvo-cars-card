@@ -17,3 +17,11 @@ tokens or API dumps — examples use generic entities.
 Run `npm run check` (typecheck, build and tests against the built bundle) before
 publishing. The release workflow publishes `dist/volvo-cars-card.js` for a `v*` tag that
 matches `package.json`, so `dist/` stays out of the default branch.
+
+## Publishing
+
+Commit and push every change. A change a user can see - card behaviour, integration
+code, entity or service contracts - also gets a version bump and an annotated
+`v<version>` tag, because HACS installs from releases: do not wait to be asked for a
+release. Docs-only changes are pushed without a release. After pushing a tag, confirm
+the release workflow succeeded and that the asset is attached.
