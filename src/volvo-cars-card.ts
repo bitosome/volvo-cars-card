@@ -322,4 +322,4 @@ cardWindow.customCards.push({
   description: 'Battery, range, lock, openings and charging for one Volvo, in the Space Hub style.',
   preview: true,
 });
-console.info('%c VOLVO CARS CARD %c 0.1.0 ', 'background:#8fb4ff;color:#181a27;font-weight:700', 'background:#292b3e;color:#dedff5');
+console.info('%c VOLVO CARS CARD %c 0.1.1 ', 'background:#8fb4ff;color:#181a27;font-weight:700', 'background:#292b3e;color:#dedff5');
