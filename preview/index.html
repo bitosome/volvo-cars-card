@@ -15,6 +15,7 @@
   body { margin:0; padding:24px; background:#171923; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; display:grid; gap:22px; grid-template-columns:repeat(auto-fit,minmax(360px,500px)); justify-content:center; align-items:start; }
   .frame { display:grid; gap:8px; }
   .frame h2 { font-size:13px; color:#acb1cc; font-weight:600; margin:0; }
+  .frame.phone { width: 390px; max-width: 100%; }
   .frame .measure { font-size:11px; color:#7f86a3; font-variant-numeric:tabular-nums; margin:0; }
 </style>
 </head>
@@ -23,6 +24,7 @@
 <div class="frame"><h2>banner · live XC40: cable in while the port sensor says closed — no nag, and the detail tile says so</h2><volvo-cars-card id="xc40"></volvo-cars-card><p class="measure" id="m-xc40"></p></div>
 <div class="frame"><h2>banner · one opening: the amber phrase alone, no line</h2><volvo-cars-card id="open"></volvo-cars-card><p class="measure" id="m-open"></p></div>
 <div class="frame"><h2>banner · the quiet case: unplugged with everything shut</h2><volvo-cars-card id="quiet"></volvo-cars-card><p class="measure" id="m-quiet"></p></div>
+<div class="frame phone" id="phone-frame"><h2>banner · phone width (390 px): the phrase takes its own line</h2><volvo-cars-card id="phone"></volvo-cars-card><p class="measure" id="m-phone"></p></div>
 <div class="frame"><h2>compact · live EX30</h2><volvo-cars-card id="compact"></volvo-cars-card><p class="measure" id="m-compact"></p></div>
 <div class="frame"><h2>full · live EX30 (the hero layout)</h2><volvo-cars-card id="full"></volvo-cars-card><p class="measure" id="m-full"></p></div>
 <script>
@@ -102,6 +104,7 @@
     ['xc40', { car: 'xc40', name: 'Volvo XC40', image: IMAGES.xc40 }, states],
     ['open', { car: 'xc40', name: 'Volvo XC40', image: IMAGES.xc40 }, { ...quiet, 'binary_sensor.volvo_xc40_tank_lid': entity('on') }],
     ['quiet', { car: 'xc40', name: 'Volvo XC40', image: IMAGES.xc40 }, quiet],
+    ['phone', { car: 'ex30', name: 'Volvo EX30', image: IMAGES.ex30 }, states],
     ['compact', { car: 'ex30', name: 'Volvo EX30', layout: 'compact', image: IMAGES.ex30 }, states],
     ['full', { car: 'ex30', name: 'Volvo EX30', layout: 'full', image: IMAGES.ex30 }, states],
   ];

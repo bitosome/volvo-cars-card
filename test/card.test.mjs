@@ -472,13 +472,34 @@ test('one status phrase, one accent colour, by priority', async () => {
     'sensor.volvo_ex30_charging_power_status': entity('fault'),
     'binary_sensor.volvo_ex30_door_front_left': entity('on'),
   }));
-  assert.match(fault.textContent, /Plugged · charging fault/);
+  assert.match(fault.textContent, /Charging fault/);
   assert.equal(fault.className.trim(), 'band-status alert');
   assert.equal(root((await fixture({ state: states('ex30', {
     'sensor.volvo_ex30_charging_connection_status': entity('connected'),
     'sensor.volvo_ex30_charging_power_status': entity('fault'),
     'binary_sensor.volvo_ex30_door_front_left': entity('on'),
   }) })).card).querySelectorAll('.band-status').length, 1, 'never more than one phrase');
+});
+
+test('the status phrase carries no redundant prefix', async () => {
+  const phrase = async state => root((await fixture({ state })).card).querySelector('.band-status');
+  const fault = await phrase(states('ex30', {
+    'sensor.volvo_ex30_charging_connection_status': entity('connected'),
+    'sensor.volvo_ex30_charging_power_status': entity('fault'),
+  }));
+  assert.equal(fault.textContent.trim(), 'Charging fault', 'the plug icon already says plugged');
+  const supply = await phrase(states('ex30', {
+    'sensor.volvo_ex30_charging_connection_status': entity('connected'),
+    'sensor.volvo_ex30_charging_power_status': entity('no_power_available'),
+  }));
+  assert.equal(supply.textContent.trim(), 'No power');
+  const charging = await phrase(states('ex30', {
+    'sensor.volvo_ex30_charging_connection_status': entity('connected'),
+    'sensor.volvo_ex30_charging_status': entity('charging'),
+    'sensor.volvo_ex30_charging_power': entity('11200', { unit_of_measurement: 'W' }),
+    'sensor.volvo_ex30_charging_power_status': entity('ok'),
+  }));
+  assert.equal(charging.textContent.trim(), 'Charging · 11.2 kW');
 });
 
 test('the banner shows at most one line, and only when it adds something', async () => {

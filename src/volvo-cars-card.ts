@@ -372,9 +372,9 @@ export class VolvoCarsCard extends LitElement {
     // One phrase at most on the banner, with a single accent colour: what the car
     // faults on outranks an opening, which outranks merely being plugged in.
     const status = problem === 'fault'
-      ? { icon: 'mdi:alert-circle-outline', label: 'Plugged · charging fault', cls: 'alert' }
+      ? { icon: 'mdi:alert-circle-outline', label: 'Charging fault', cls: 'alert' }
       : problem
-        ? { icon: 'mdi:alert-outline', label: 'Plugged · no power', cls: 'warn' }
+        ? { icon: 'mdi:alert-outline', label: 'No power', cls: 'warn' }
         : open.length
           ? { icon: open.length === 1 ? open[0].icon : 'mdi:car-door', label: open.length === 1 ? `${open[0].label} open` : `${open.length} open`, cls: 'warn' }
           : charging
@@ -551,4 +551,4 @@ cardWindow.customCards.push({
   description: 'Battery, range, lock, openings and charging for one Volvo, in the Space Hub style.',
   preview: true,
 });
-console.info('%c VOLVO CARS CARD %c 0.5.0 ', 'background:#8fb4ff;color:#181a27;font-weight:700', 'background:#292b3e;color:#dedff5');
+console.info('%c VOLVO CARS CARD %c 0.5.1 ', 'background:#8fb4ff;color:#181a27;font-weight:700', 'background:#292b3e;color:#dedff5');

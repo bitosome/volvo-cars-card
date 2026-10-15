@@ -101,6 +101,13 @@ export const cardStyles = css`
   /* Nothing is written on the car: only enough of an edge for the band to separate. */
   .banner-fade { position: absolute; inset: auto 0 0; height: 40%; background: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,.22) 100%); pointer-events: none; }
   .banner-band { display: flex; align-items: center; gap: 8px; min-height: 56px; padding: 8px 6px 8px 14px; }
+  /* Phones: the phrase takes its own line under the battery row instead of competing
+     with the level bar and the range for the same space. */
+  @container (max-width: 470px) {
+    .banner-band { flex-wrap: wrap; row-gap: 4px; }
+    .band-identity { flex: 1 1 auto; }
+    .band-status { order: 3; flex: 1 1 100%; max-width: 100%; justify-content: flex-start; }
+  }
   .band-identity { display: grid; gap: 4px; min-width: 0; flex: 1; padding: 0; border: 0; background: transparent; text-align: left; }
   .band-name { font-size: 15px; font-weight: 600; letter-spacing: -.015em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .band-figures { display: flex; align-items: center; gap: 8px; min-width: 0; }
@@ -109,7 +116,9 @@ export const cardStyles = css`
   .band-level { position: relative; flex: 1 1 60px; min-width: 48px; max-width: 200px; height: 3px; border-radius: 999px; background: color-mix(in srgb,var(--primary-text-color) 13%,transparent); }
   .band-level > span { display: block; height: 100%; border-radius: inherit; background: var(--car-accent); transition: width .3s; }
   .band-range { font-size: 12px; color: var(--car-muted); font-variant-numeric: tabular-nums; white-space: nowrap; flex: 0 0 auto; }
-  .band-status { display: inline-flex; align-items: center; gap: 4px; padding: 4px 9px; border-radius: var(--chip-border-radius); font-size: 11.5px; font-weight: 600; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 40%; color: var(--car-muted); background: color-mix(in srgb,var(--primary-text-color,#ddd) 7%,transparent); }
+  /* The phrase is never truncated mid-word: it is short by construction and, when it
+     cannot share the line, it moves to one of its own (see the container query). */
+  .band-status { display: inline-flex; align-items: center; gap: 4px; padding: 4px 9px; border-radius: var(--chip-border-radius); font-size: 11.5px; font-weight: 600; line-height: 1.25; white-space: nowrap; max-width: 40%; color: var(--car-muted); background: color-mix(in srgb,var(--primary-text-color,#ddd) 7%,transparent); }
   .band-status ha-icon { width: 14px; height: 14px; --mdc-icon-size: 14px; flex-basis: 14px; }
   .band-status.warn { color: color-mix(in srgb,var(--status-warn-color) 74%,var(--primary-text-color) 26%); background: color-mix(in srgb,var(--status-warn-color) 15%,transparent); }
   .band-status.alert { color: color-mix(in srgb,var(--status-alert-color) 76%,var(--primary-text-color) 24%); background: color-mix(in srgb,var(--status-alert-color) 15%,transparent); }
