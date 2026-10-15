@@ -35,6 +35,16 @@ export type Action = typeof ACTIONS[number];
 export const LAYOUTS = ['compact', 'full'] as const;
 export type Layout = typeof LAYOUTS[number];
 
+export const IMAGE_SIZES = ['small', 'medium', 'large'] as const;
+export type ImageSize = typeof IMAGE_SIZES[number];
+/** Thumbnail heights; the width follows the cars' 16:9 pictures. */
+export const IMAGE_HEIGHTS: Record<ImageSize, number> = { small: 54, medium: 72, large: 90 };
+export const ASPECT = 16 / 9;
+
+export function imageSize(height: number): { width: number; height: number } {
+  return { width: Math.round(height * ASPECT), height };
+}
+
 export interface VolvoCardConfig {
   type: string;
   /** `compact` is one dense row; `full` is the hero layout. */
@@ -47,6 +57,10 @@ export interface VolvoCardConfig {
   /** Picture URL. Defaults to the picture of `image_entity`, then the car's tracker. */
   image?: string;
   image_entity?: string;
+  /** Thumbnail size: `medium` (128x72) is the default. */
+  image_size?: ImageSize;
+  /** Explicit thumbnail height in pixels, overriding `image_size`. */
+  image_height?: number;
   /** Per-slot entity overrides for anything that is not named the standard way. */
   entities?: Partial<Record<Slot, string>>;
   /** Extra entities shown as quiet secondary rows. */
@@ -55,6 +69,7 @@ export interface VolvoCardConfig {
 
 export interface ResolvedCar {
   layout: Layout;
+  thumb: { width: number; height: number };
   name: string;
   prefix: string;
   image?: string;
@@ -126,6 +141,7 @@ export function resolveCar(config: VolvoCardConfig, hass?: Hass): ResolvedCar {
   return {
     prefix,
     layout: config.layout ?? 'compact',
+    thumb: imageSize(config.image_height ?? IMAGE_HEIGHTS[config.image_size ?? 'medium']),
     name: config.name || stripCarName(named) || `Volvo ${String(config.car ?? '').toUpperCase()}`.trim(),
     image: config.image || (typeof tracked === 'string' ? tracked : undefined),
     imageEntity,
@@ -144,6 +160,10 @@ export function validateConfig(raw: VolvoCardConfig): VolvoCardConfig {
   if (!raw.car && !raw.prefix) throw new Error('Set the car (car: ex30 or car: xc40).');
   if (raw.car !== undefined && !/^[a-z0-9_]+$/.test(raw.car)) throw new Error('car must be a lowercase key such as ex30.');
   if (raw.prefix !== undefined && !/^[a-z0-9_]+_$/.test(raw.prefix)) throw new Error('prefix must look like volvo_ex30_.');
+  if (raw.image_size !== undefined && !(IMAGE_SIZES as readonly string[]).includes(raw.image_size)) throw new Error('image_size must be small, medium or large.');
+  if (raw.image_height !== undefined) {
+    if (!Number.isInteger(raw.image_height) || raw.image_height < 32 || raw.image_height > 200) throw new Error('image_height must be a whole number of pixels between 32 and 200.');
+  }
   for (const key of ['name', 'image', 'image_entity'] as const) {
     if (raw[key] !== undefined && (typeof raw[key] !== 'string' || !raw[key]!.trim())) throw new Error(`${key} must be a non-empty string.`);
   }

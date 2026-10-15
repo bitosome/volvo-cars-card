@@ -237,11 +237,11 @@ export class VolvoCarsCard extends LitElement {
       <div class="row" role="button" tabindex="0" @click=${() => this.moreInfo(car.entities.charging_connection)}>
         <span class="row-icon ${alert ? 'alert' : problem ? 'warn' : 'ok'}"><ha-icon .icon=${alert ? 'mdi:alert-circle-outline' : problem ? 'mdi:alert-outline' : 'mdi:ev-station'}></ha-icon></span>
         <span class="row-text">
-          <span class="row-title">${alert || problem ? humanize(problem) : chargeState}</span>
+          <span class="row-title">${alert ? 'Charging fault' : problem ? 'No power available' : chargeState}</span>
           <span class="row-sub">${alert
-            ? 'The charger reported a fault. Check the cable and the charging station.'
+            ? 'The car reports a charging fault — check the cable and the charging station.'
             : problem === 'no_power_available'
-              ? 'Plugged in, but the charging station is not supplying power.'
+              ? 'The car reports no power available at the charging station.'
               : detail || 'Plugged in.'}</span>
         </span>
         ${!alert && !problem && available(status) && status!.state !== 'idle'
@@ -344,25 +344,32 @@ export class VolvoCarsCard extends LitElement {
     const lockLabel = !pressable(lock) ? 'Lock unavailable' : busy ? (lock?.state === 'locked' ? 'Unlocking' : 'Locking') : lock?.state === 'locked' ? 'Unlock' : 'Lock';
     const chips = [
       plugged ? { icon: charging ? 'mdi:battery-charging' : 'mdi:power-plug', label: watts > 0 ? `${(watts / 1000).toFixed(watts >= 100000 ? 0 : 1)} kW` : charging ? 'Charging' : 'Plugged', cls: charging ? 'charging' : '' } : undefined,
-      open.length ? { icon: 'mdi:car-door', label: `${open.length} open`, cls: 'warn' } : undefined,
-      problem ? { icon: 'mdi:alert-circle-outline', label: problem === 'fault' ? 'Fault' : 'No power', cls: 'alert' } : undefined,
+      // An opening is informational: amber, never the fault treatment.
+      open.length ? { icon: open.length === 1 ? open[0].icon : 'mdi:car-door', label: open.length === 1 ? `${open[0].label} open` : `${open.length} open`, cls: 'warn' } : undefined,
+      problem ? { icon: 'mdi:alert-circle-outline', label: 'Charging fault', cls: 'alert' } : undefined,
     ].filter((chip): chip is { icon: string; label: string; cls: string } => !!chip);
     const line = problem
-      ? { text: problem === 'fault' ? 'Charger fault — check the cable and the charging station.' : 'Plugged in, but the charging station is not supplying power.', cls: problem === 'fault' ? 'alert' : 'warn' }
-      : open.length
+      ? { text: problem === 'fault'
+            ? 'The car reports a charging fault — check the cable and the charging station.'
+            : 'The car reports no power available at the charging station.', cls: problem === 'fault' ? 'alert' : 'warn' }
+      : open.length > 1
+        // One opening is already named on its chip; only several need this line.
         ? { text: `${open.slice(0, 3).map(item => item.key === 'tank_lid' ? 'charge port' : item.label.toLowerCase()).join(', ')} open${open.length > 3 ? ` and ${open.length - 3} more` : ''}.`, cls: 'warn' }
         : charging && minutes > 0
           ? { text: `${minutes >= 60 ? `${Math.floor(minutes / 60)} h ${Math.round(minutes % 60)} min` : `${Math.round(minutes)} min`} to ${target !== undefined ? `${Math.round(target)}%` : 'target'}${watts > 0 ? ` at ${(watts / 1000).toFixed(watts >= 100000 ? 0 : 1)} kW` : ''}.`, cls: '' }
           : undefined;
+    // Amber for an opening, red only for what the car itself reports. The pulse
+    // colours ride on the canonical under-tile glow layer.
     const pulse = line?.cls === 'alert' ? { weak: 'rgba(229,57,53,.30)', strong: 'rgba(229,57,53,.55)' }
       : line?.cls === 'warn' ? { weak: 'rgba(255,152,0,.28)', strong: 'rgba(255,152,0,.50)' }
         : undefined;
+    const glow = buildGlow(pulse, 'static', !!pulse);
     return html`<ha-card>
       <div class="root">
         <div class="tile-wrap">
-          ${buildGlow(pulse, 'static', !!pulse).overlay}
+          <div class="glow-under" style=${glow.style}>${glow.overlay}</div>
           <section class="surface compact" aria-label=${`${car.name} status`}>
-            <button class="thumb" data-action="thumb" aria-label=${`Show ${car.name} location`} @click=${() => this.moreInfo(car.imageEntity)}>
+            <button class="thumb" data-action="thumb" style=${`--thumb-w:${car.thumb.width}px;--thumb-h:${car.thumb.height}px`} aria-label=${`Show ${car.name} location`} @click=${() => this.moreInfo(car.imageEntity)}>
               ${image ? html`<img src=${image} alt="" referrerpolicy="no-referrer" />` : html`<ha-icon .icon=${'mdi:car'}></ha-icon>`}
             </button>
             <button class="compact-identity" data-action="identity" aria-label=${`${car.name} battery ${battery ?? 'unavailable'} percent`} @click=${() => this.moreInfo(car.entities.battery)}>
@@ -376,7 +383,6 @@ export class VolvoCarsCard extends LitElement {
                 ${target !== undefined ? html`<span class="compact-level target" style=${`left:${Math.min(100, Math.max(0, target))}%`}></span>` : nothing}
               </span>
             </button>
-            ${chips.length ? html`<div class="chips">${chips.map(chip => html`<span class="chip ${chip.cls}"><ha-icon .icon=${chip.icon}></ha-icon>${chip.label}</span>`)}</div>` : nothing}
             <div class="compact-controls">
               <button class="lock-pill ${unlocked ? 'unlocked' : jammed ? 'alert' : ''}" data-action="lock"
                       ?disabled=${!pressable(lock) || busy} aria-label=${lockLabel}
@@ -388,6 +394,7 @@ export class VolvoCarsCard extends LitElement {
                       aria-label=${this.expanded ? 'Hide details' : 'Show details'} @click=${() => { this.expanded = !this.expanded; }}>
                 <ha-icon .icon=${'mdi:chevron-down'}></ha-icon><span class="sr-only">Details</span></button>` : nothing}
             </div>
+            ${chips.length ? html`<div class="chips">${chips.map(chip => html`<span class="chip ${chip.cls}"><ha-icon .icon=${chip.icon}></ha-icon>${chip.label}</span>`)}</div>` : nothing}
             ${line ? html`<p class="alert-line ${line.cls}" role="status">${line.text}</p>` : nothing}
           </section>
         </div>
@@ -423,4 +430,4 @@ cardWindow.customCards.push({
   description: 'Battery, range, lock, openings and charging for one Volvo, in the Space Hub style.',
   preview: true,
 });
-console.info('%c VOLVO CARS CARD %c 0.2.0 ', 'background:#8fb4ff;color:#181a27;font-weight:700', 'background:#292b3e;color:#dedff5');
+console.info('%c VOLVO CARS CARD %c 0.3.0 ', 'background:#8fb4ff;color:#181a27;font-weight:700', 'background:#292b3e;color:#dedff5');

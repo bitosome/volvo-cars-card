@@ -93,10 +93,10 @@ export const cardStyles = css`
   .item.charge ha-icon { color: var(--status-alert-color); }
   .item span { overflow-wrap: anywhere; }
   /* ---- compact layout: one dense status row ---- */
-  /* The identity keeps a readable minimum; the chips column is capped, so chips wrap
-     inside it rather than truncating the car's name. */
-  .compact { display: grid; grid-template-columns: auto minmax(132px,1fr) minmax(0,150px) auto; align-items: center; column-gap: 9px; row-gap: 4px; padding: 10px 12px; }
-  .thumb { padding: 0; border: 0; width: 96px; height: 54px; border-radius: calc(var(--tile-border-radius) - 4px); overflow: hidden; background: color-mix(in srgb,var(--primary-text-color) 6%,transparent); display: grid; place-items: center; color: var(--car-muted); flex: 0 0 auto; }
+  /* Thumbnail, identity and controls share the first line; chips get a full-width
+     line of their own so neither the car's name nor a chip label is ever clipped. */
+  .compact { display: grid; grid-template-columns: auto minmax(120px,1fr) auto; align-items: center; column-gap: 10px; row-gap: 4px; padding: 10px 12px; }
+  .thumb { padding: 0; border: 0; width: var(--thumb-w, 128px); height: var(--thumb-h, 72px); border-radius: calc(var(--tile-border-radius) - 4px); overflow: hidden; background: color-mix(in srgb,var(--primary-text-color) 6%,transparent); display: grid; place-items: center; color: var(--car-muted); flex: 0 0 auto; }
   .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .thumb ha-icon { width: 26px; height: 26px; --mdc-icon-size: 26px; flex-basis: 26px; }
   .compact-identity { display: grid; gap: 3px; min-width: 0; text-align: left; padding: 0; border: 0; background: transparent; }
@@ -108,7 +108,7 @@ export const cardStyles = css`
   .compact-level { position: relative; height: 3px; width: min(140px, 100%); border-radius: 999px; overflow: hidden; background: color-mix(in srgb,var(--primary-text-color) 12%,transparent); }
   .compact-level > span { display: block; height: 100%; border-radius: inherit; background: var(--car-accent); transition: width .3s; }
   .compact-level.target { position: absolute; top: 0; bottom: 0; width: 2px; background: color-mix(in srgb,var(--primary-text-color) 55%,transparent); }
-  .chips { display: flex; flex-wrap: wrap; gap: 5px; min-width: 0; justify-content: flex-end; overflow: hidden; }
+  .chips { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 5px; min-width: 0; }
   .chip { display: inline-flex; align-items: center; gap: 3px; padding: 3px 7px; border-radius: var(--chip-border-radius); font-size: 11px; font-weight: 600; line-height: 1.2; color: var(--car-muted); background: color-mix(in srgb,var(--primary-text-color,#ddd) 7%,transparent); font-variant-numeric: tabular-nums; white-space: nowrap; }
   .chip ha-icon { width: 13px; height: 13px; --mdc-icon-size: 13px; flex-basis: 13px; }
   .chip.charging { color: color-mix(in srgb,var(--status-success-color) 68%,var(--primary-text-color) 32%); background: color-mix(in srgb,var(--status-success-color) 13%,transparent); }
@@ -126,7 +126,7 @@ export const cardStyles = css`
   .alert-line.alert { color: color-mix(in srgb,var(--status-alert-color) 76%,var(--primary-text-color) 24%); }
   .details { margin-top: var(--medium-gap); }
   /* Narrow columns put the chips on their own line instead of squeezing the name. */
-  @container (max-width: 430px) { .compact { grid-template-columns: auto minmax(132px,1fr) auto; } .chips { grid-column: 2 / -1; justify-content: flex-start; } }
-  @container (max-width: 340px) { .thumb { width: 72px; height: 44px; } .compact-value { font-size: 19px; } }
+  @container (max-width: 430px) { .compact { grid-template-columns: auto minmax(0,1fr) auto; } }
+  @container (max-width: 340px) { .thumb { width: calc(var(--thumb-w, 128px) * .78); height: calc(var(--thumb-h, 72px) * .78); } .compact-value { font-size: 19px; } }
   .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 `;

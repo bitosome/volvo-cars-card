@@ -19,9 +19,11 @@
 </style>
 </head>
 <body>
-<div class="frame"><h2>compact · plugged in, charger fault, charge port open</h2><volvo-cars-card id="ex30"></volvo-cars-card><p class="measure" id="m-ex30"></p></div>
+<div class="frame"><h2>compact · charge port open <em>and</em> a car-reported charging fault — two separate signals</h2><volvo-cars-card id="ex30"></volvo-cars-card><p class="measure" id="m-ex30"></p></div>
+<div class="frame"><h2>compact · charge port open alone: an opening, amber, never a fault</h2><volvo-cars-card id="port"></volvo-cars-card><p class="measure" id="m-port"></p></div>
 <div class="frame"><h2>compact · unplugged and normal (one line, no chips)</h2><volvo-cars-card id="xc40"></volvo-cars-card><p class="measure" id="m-xc40"></p></div>
 <div class="frame"><h2>compact · details expanded</h2><volvo-cars-card id="open"></volvo-cars-card><p class="measure" id="m-open"></p></div>
+<div class="frame"><h2>compact · image_size: large</h2><volvo-cars-card id="large"></volvo-cars-card><p class="measure" id="m-large"></p></div>
 <div class="frame"><h2>full · the hero layout</h2><volvo-cars-card id="full"></volvo-cars-card><p class="measure" id="m-full"></p></div>
 <script>
   // Home Assistant provides <ha-icon>; offline the preview substitutes a glyph so the
@@ -76,27 +78,30 @@
       'sensor.volvo_ex30_estimated_charging_time': entity('121', { unit_of_measurement: 'min' }),
       'sensor.volvo_ex30_target_battery_charge_level': entity('90', { unit_of_measurement: '%' }),
       'binary_sensor.volvo_ex30_tank_lid': entity('on'),
-      'binary_sensor.volvo_ex30_door_front_left': entity('on'),
     }),
     ...base('xc40', { 'sensor.volvo_xc40_battery': entity('70', { unit_of_measurement: '%' }) }),
   };
+  // The same XC40 with the charge port open and nothing else wrong: no fault anywhere.
+  const portOpen = { ...states, 'binary_sensor.volvo_xc40_tank_lid': entity('on') };
 
-  const hass = {
+  const makeHass = states => ({
     states,
     callService: async (domain, service, data) => console.info('preview would call', domain, service, data),
     hassUrl: path => path,
-  };
+  });
 
   const cards = [
-    ['ex30', { car: 'ex30', name: 'Volvo EX30' }],
-    ['xc40', { car: 'xc40', name: 'Volvo XC40' }],
-    ['open', { car: 'xc40', name: 'Volvo XC40', show: ['charging', 'openings', 'odometer', 'actions'] }],
-    ['full', { car: 'ex30', name: 'Volvo EX30', layout: 'full' }],
+    ['ex30', { car: 'ex30', name: 'Volvo EX30' }, states],
+    ['port', { car: 'xc40', name: 'Volvo XC40' }, portOpen],
+    ['xc40', { car: 'xc40', name: 'Volvo XC40' }, states],
+    ['open', { car: 'xc40', name: 'Volvo XC40', show: ['charging', 'openings', 'odometer', 'actions'] }, states],
+    ['large', { car: 'xc40', name: 'Volvo XC40', image_size: 'large' }, portOpen],
+    ['full', { car: 'ex30', name: 'Volvo EX30', layout: 'full' }, states],
   ];
-  for (const [id, config] of cards) {
+  for (const [id, config, cardStates] of cards) {
     const card = document.getElementById(id);
     card.setConfig({ type: 'custom:volvo-cars-card', ...config });
-    card.hass = hass;
+    card.hass = makeHass(cardStates);
   }
   await Promise.all(cards.map(([id]) => document.getElementById(id).updateComplete));
   document.getElementById('open').shadowRoot.querySelector('[data-action="disclosure"]').click();

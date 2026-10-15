@@ -1,15 +1,18 @@
 # One card per car. Every entity is derived from the car key, so `car` is the only
-# required option. The compact layout is the default: a single dense row that stays
-# quiet until something needs attention.
+# required option. The compact layout is the default: a single dense row with a
+# 128x72 thumbnail that stays quiet until something needs attention.
 type: custom:volvo-cars-card
 car: ex30
 name: Volvo EX30
 image: /api/image/serve/f31713098a298d1775d4b2e181ddfccd/original
 ---
+# A larger thumbnail: small (96x54), medium (128x72, default) or large (160x90),
+# or an exact height in pixels.
 type: custom:volvo-cars-card
 car: xc40
 name: Volvo XC40
 image: /api/image/serve/cfc5e4693a59de8d2a662b2391509297/original
+image_size: large
 show: [charging, openings, odometer, actions]
 ---
 # The hero layout, for anyone who wants the big picture back.

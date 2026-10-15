@@ -31,6 +31,8 @@ Optional keys:
 | `name` | Display name. Defaults to the lock entity's friendly name without “Lock”. |
 | `image` | Picture URL. Defaults to the `entity_picture` of `image_entity`. |
 | `image_entity` | Entity whose picture is used. Defaults to the car's `device_tracker.…_location`. |
+| `image_size` | `small` (96×54), `medium` (**128×72**, default) or `large` (160×90). |
+| `image_height` | Explicit thumbnail height in pixels (32–200), overriding `image_size`; the width follows the 16:9 car pictures. |
 | `entities` | Per-slot overrides, e.g. `{lock: lock.other, battery: sensor.other_battery}`. Slots: `lock`, `battery`, `range`, `odometer`, `charging_connection`, `charging_status`, `charging_power`, `charging_power_status`, `charging_type`, `charging_time`, `charging_target`. |
 | `show` | Which detail rows the disclosure can show: `charging`, `openings`, `actions`, `odometer`. Defaults to the first three. |
 | `layout` | `compact` (default) or `full`. `full` is the hero card with the large picture and the rows always open. |
@@ -43,12 +45,12 @@ The Volvo integration exposes no image entity. Uploaded pictures live in Home As
 
 **Compact (default)** — one row, four zones:
 
-- a 96×54 thumbnail cropped from the car picture (`object-fit: cover`), or an MDI car icon when no picture is configured;
+- a **128×72** thumbnail cropped from the car picture (`object-fit: cover`, so a 1920×1080 upload crops to the car), or an MDI car icon when no picture is configured;
 - the name, the battery percentage as the figure that matters with a thin level bar and the charge-target marker, and distance-to-empty beside it;
-- chips, only when they carry information: plugged in (`kW` while charging, otherwise *Plugged*), *N open* when something is open, and a fault chip;
+- chips, only when they carry information: plugged in (`kW` while charging, otherwise *Plugged*), an amber opening chip (*Charge port open*, or *N open* when several), and a red chip **only** for a fault the car reports;
 - the lock as a compact icon pill — optimistic *Locking…*/*Unlocking…*, refused when the lock is unavailable.
 
-Nothing abnormal means nothing extra: a normal car is a single row (**74 px** at 500 px wide). Anything that needs attention adds at most one quiet line that names what changed — *"front left door, charge port open."* or *"Charger fault — check the cable and the charging station."* (worst case measured: **111 px**).
+Nothing abnormal means nothing extra: a normal car is a single row (**92 px** at 500 px wide, 128×72 thumbnail). An opening adds an amber chip — named when there is only one, e.g. *Charge port open* — and several openings add one quiet line naming them (*"front left door, charge port open."*). A fault the **car itself reports** adds a red chip and one line, *"The car reports a charging fault — check the cable and the charging station."* Worst case measured: **139 px** (115 px for an opening alone, 133 px at `image_size: large`).
 
 Everything else is behind the chevron: the `show` rows (charging detail, the full openings list, odometer, quick actions) are collapsed until you expand them. Tapping the identity opens more-info for the battery, the thumbnail for the car's location.
 
@@ -57,7 +59,8 @@ Everything else is behind the chevron: the `show` rows (charging detail, the ful
 In both layouts:
 
 - **Charging** — plugged in: state, power and time to target. Not plugged in: a single quiet line. A charger `fault` or `no_power_available` is surfaced as a fault, never as normal charging, and only while the car is actually plugged in.
-- **Openings** — quiet when everything is shut. When something is open only those items are listed with their names; the tank lid is labelled **Charge port** because that is what it is on these cars.
+- **Openings** — quiet when everything is shut, and always informational (amber, never the fault treatment). When something is open only those items are named; the tank lid is labelled **Charge port** because that is what it is on these cars. An open charge port is an opening like any other: it never produces a fault chip, a fault line or the red glow.
+- **Faults** — red is reserved for what the car reports through its charging sensors (`fault`, and `no_power_available` while actually plugged in). The wording always attributes it to the car, so an open port can never read as its cause.
 - **Quick actions** — flash, honk, honk & flash, precondition and stop precondition. Each button appears only when its entity is configured in the integration and available, so an unsupported car just shows fewer buttons.
 
 ## Design
