@@ -40,7 +40,7 @@ actions:
 | `image` | Image URL; existing HA uploaded-image URLs work. |
 | `image_entity` | Entity providing `entity_picture`; defaults to the car's location tracker. |
 | `image_size` | `small`, `medium` (default), or `large`. |
-| `image_height` | Explicit height, 32–260 px. The image is contained rather than cropped. |
+| `image_height` | Explicit height, 32–260 px (overview default 140 px). Transparent margins are automatically excluded from framing so the car fills the area; the visible image is contained. Opaque or unreadable cross-origin images keep standard containment. Original image files are unchanged. |
 | `layout` | `banner` (overview, default), `compact` (smaller image), or `full` (details initially expanded). All share the same state interpretation and essential controls. |
 | `show` | Optional detail sections: `charging`, `openings`, `actions`, `odometer`. Defaults to the first three. `[]` hides these extras. Core battery, charging and opening status remain visible. |
 | `entities` | Overrides for `lock`, `battery`, `range`, `odometer`, `charging_connection`, `charging_status`, `charging_power`, `charging_power_status`, `charging_type`, `charging_time`, `charging_target`. |

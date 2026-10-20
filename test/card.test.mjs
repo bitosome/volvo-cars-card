@@ -196,6 +196,103 @@ test('an explicit picture wins; missing or failed pictures leave usable controls
   assert.deepEqual(pictured.calls, []);
   assert.deepEqual(missing.calls, []);
 });
+test('framed images fall back once after SVG failure and stale errors cannot affect a new picture', async () => {
+  const { card, calls } = await fixture();
+  const firstImage = root(card).querySelector('.vehicle-image img');
+  const ownerDocument = firstImage.ownerDocument;
+  const originalDescriptor = Object.getOwnPropertyDescriptor(
+    ownerDocument,
+    'createElement',
+  );
+  const createElement = ownerDocument.createElement;
+  let samples = 0;
+  Object.defineProperty(ownerDocument, 'createElement', {
+    configurable: true,
+    value(name, ...args) {
+      const element = createElement.call(this, name, ...args);
+      if (name === 'canvas') {
+        element.getContext = () => ({
+          drawImage() {},
+          getImageData(_x, _y, width, height) {
+            samples++;
+            const data = new Uint8ClampedArray(width * height * 4);
+            for (let y = height / 4; y < (height * 3) / 4; y++) {
+              for (let x = width / 4; x < (width * 3) / 4; x++) {
+                data[(y * width + x) * 4 + 3] = 255;
+              }
+            }
+            return { data };
+          },
+        });
+      }
+      return element;
+    },
+  });
+  const load = async (image) => {
+    Object.defineProperties(image, {
+      naturalWidth: { configurable: true, value: 1024 },
+      naturalHeight: { configurable: true, value: 512 },
+      complete: { configurable: true, value: true },
+    });
+    image.dispatchEvent(new Event('load'));
+    await settle(card);
+  };
+  try {
+    await load(firstImage);
+    const firstFrame = root(card).querySelector('.vehicle-image svg');
+    assert.ok(firstFrame, 'loaded alpha bounds frame the existing picture');
+    const [x, y, width, height] = firstFrame
+      .getAttribute('viewBox')
+      .split(' ')
+      .map(Number);
+    assert.ok(x > 0 && y > 0 && width < 1024 && height < 512);
+    const firstSvgImage = firstFrame.querySelector('image');
+    assert.equal(firstSvgImage.getAttribute('href'), firstImage.src);
+    firstSvgImage.dispatchEvent(new Event('error'));
+    await settle(card);
+
+    const fallback = root(card).querySelector('.vehicle-image img');
+    assert.ok(fallback, 'failed SVG falls back to the ordinary picture');
+    assert.equal(fallback.src, firstImage.src);
+    await load(fallback);
+    await load(fallback);
+    assert.equal(root(card).querySelector('.vehicle-image svg'), null);
+    assert.equal(samples, 1, 'fallback loads must not restart alpha framing');
+
+    await update(card, {
+      'device_tracker.volvo_ex30_location': entity('not_home', {
+        entity_picture: '/api/image/serve/updated/original',
+      }),
+    });
+    const nextImage = root(card).querySelector('.vehicle-image img');
+    assert.equal(
+      nextImage.src,
+      'https://ha.test/api/image/serve/updated/original',
+    );
+    await load(nextImage);
+    const nextFrame = root(card).querySelector('.vehicle-image svg');
+    assert.ok(nextFrame, 'a new source can be framed after the old fallback');
+    assert.equal(samples, 2);
+
+    firstSvgImage.dispatchEvent(new Event('error'));
+    firstImage.dispatchEvent(new Event('error'));
+    firstImage.dispatchEvent(new Event('load'));
+    await settle(card);
+    assert.equal(
+      root(card).querySelector('.vehicle-image svg'),
+      nextFrame,
+      'late events from the previous source cannot hide or reset the new frame',
+    );
+    assert.equal(samples, 2);
+    assert.deepEqual(calls, []);
+  } finally {
+    if (originalDescriptor) {
+      Object.defineProperty(ownerDocument, 'createElement', originalDescriptor);
+    } else {
+      delete ownerDocument.createElement;
+    }
+  }
+});
 test('connected with Volvo paused power fault stays neutral, not a charging error', async () => {
   for (const powerStatus of [
     'fault',

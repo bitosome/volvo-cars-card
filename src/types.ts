@@ -75,11 +75,11 @@ export const IMAGE_HEIGHTS: Record<ImageSize, number> = {
   medium: 72,
   large: 90,
 };
-/** Banner heights for the same presets: the picture leads, so the scale is larger. */
+/** Overview image heights, fitting the visible vehicle rather than transparent margins. */
 export const BANNER_HEIGHTS: Record<ImageSize, number> = {
-  small: 130,
-  medium: 160,
-  large: 210,
+  small: 110,
+  medium: 140,
+  large: 190,
 };
 export const ASPECT = 16 / 9;
 
@@ -89,7 +89,7 @@ export function imageSize(height: number): { width: number; height: number } {
 
 export interface VolvoCardConfig {
   type: string;
-  /** `banner` (default) leads with the picture, `compact` is one dense row, `full` is the hero. */
+  /** `banner` is the overview, `compact` uses a smaller picture, `full` starts with details open. */
   layout?: Layout;
   /** Car key used to derive every entity id, e.g. `ex30` for `volvo_ex30_*`. */
   car?: string;
@@ -99,7 +99,7 @@ export interface VolvoCardConfig {
   /** Picture URL. Defaults to the picture of `image_entity`, then the car's tracker. */
   image?: string;
   image_entity?: string;
-  /** Picture size preset. Compact: 96x54 / 128x72 / 160x90. Banner: 130 / 160 / 210 tall. */
+  /** Picture size preset. Compact: 96x54 / 128x72 / 160x90. Banner: 110 / 140 / 190 tall. */
   image_size?: ImageSize;
   /** Explicit picture height in pixels, overriding `image_size`. */
   image_height?: number;

@@ -19,7 +19,7 @@ export const cardStyles = css`
   ha-card {
     display: block;
     border-radius: var(--ha-card-border-radius, 24px);
-    padding: var(--tile-padding-large);
+    padding: var(--tile-padding);
     background: var(--car-surface);
     border: 1px solid var(--divider-color, rgba(255, 255, 255, 0.06));
     overflow: visible;
@@ -101,7 +101,7 @@ export const cardStyles = css`
     flex: 0 0 22px;
   }
   .vehicle {
-    padding: 18px 20px;
+    padding: 12px 16px;
     overflow: hidden;
   }
   h2,
@@ -143,12 +143,13 @@ export const cardStyles = css`
     flex-basis: 16px;
   }
   .vehicle-image {
-    height: var(--image-height, 160px);
-    margin: 5px -6px 8px;
+    height: var(--image-height, 140px);
+    margin: 0 -4px;
     display: grid;
     place-items: center;
   }
-  .vehicle-image img {
+  .vehicle-image img,
+  .vehicle-image svg {
     display: block;
     width: 100%;
     height: 100%;
@@ -161,7 +162,7 @@ export const cardStyles = css`
     align-items: flex-end;
     justify-content: space-between;
     gap: 12px;
-    margin-top: 14px;
+    margin-top: 4px;
   }
   .battery-figure {
     display: grid;
@@ -170,17 +171,17 @@ export const cardStyles = css`
     background: transparent;
     border-radius: 10px;
     padding: 0 0 4px;
-    min-height: 54px;
+    min-height: 44px;
   }
   .battery-value {
-    font-size: 44px;
+    font-size: 36px;
     line-height: 1.05;
     font-weight: 650;
     letter-spacing: -0.05em;
     font-variant-numeric: tabular-nums;
   }
   .battery-value small {
-    font-size: 21px;
+    font-size: 18px;
     margin-left: 3px;
     font-weight: 500;
     color: var(--car-muted);
@@ -190,7 +191,7 @@ export const cardStyles = css`
     font-size: 11px;
     line-height: 1.4;
     color: var(--car-muted);
-    margin-top: 5px;
+    margin-top: 3px;
   }
   .range-figure {
     display: grid;
@@ -211,7 +212,7 @@ export const cardStyles = css`
   .battery-track {
     position: relative;
     height: 6px;
-    margin-top: 12px;
+    margin-top: 7px;
     border-radius: 999px;
     background: color-mix(in srgb, var(--primary-text-color) 12%, transparent);
     overflow: hidden;
@@ -235,49 +236,38 @@ export const cardStyles = css`
     background: var(--primary-text-color);
     opacity: 0.6;
   }
-  .charge-heading {
+  .status-overview {
     display: flex;
-    justify-content: space-between;
-    gap: 8px;
-    color: var(--car-muted);
-    font-size: 11px;
-    margin-top: 8px;
-    line-height: 1.4;
+    align-items: center;
+    gap: 6px 12px;
+    margin-top: 10px;
     flex-wrap: wrap;
   }
-  .charge-heading > span:first-child {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-  }
-  .charge-heading ha-icon {
-    width: 15px;
-    height: 15px;
-    --mdc-icon-size: 15px;
-    flex-basis: 15px;
-  }
   .charging-status {
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    gap: 10px;
-    width: 100%;
+    gap: 7px;
+    max-width: 100%;
     text-align: left;
-    min-height: 60px;
+    min-height: 44px;
     border: 0;
-    border-radius: var(--tile-border-radius);
+    border-radius: 22px;
     background: color-mix(in srgb, var(--primary-text-color) 4%, transparent);
-    padding: 11px 12px;
-    margin-top: 16px;
+    padding: 8px 11px;
   }
   .status-symbol {
     display: grid;
     place-items: center;
-    width: 34px;
-    height: 34px;
-    flex: 0 0 34px;
-    border-radius: 50%;
-    background: color-mix(in srgb, var(--primary-text-color) 5%, transparent);
+    width: 20px;
+    height: 20px;
+    flex: 0 0 20px;
     color: var(--car-muted);
+  }
+  .status-symbol ha-icon {
+    width: 20px;
+    height: 20px;
+    --mdc-icon-size: 20px;
+    flex-basis: 20px;
   }
   .status-copy {
     display: grid;
@@ -286,7 +276,7 @@ export const cardStyles = css`
     min-width: 0;
   }
   .status-copy strong {
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 600;
     overflow-wrap: anywhere;
   }
@@ -326,9 +316,14 @@ export const cardStyles = css`
     );
   }
   .openings {
-    padding: 14px 0;
-    border-bottom: 1px solid
-      color-mix(in srgb, var(--primary-text-color) 8%, transparent);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 44px;
+    padding: 0;
+  }
+  .openings.needs-attention {
+    flex-basis: 100%;
   }
   .opening-summary {
     display: flex;
@@ -391,6 +386,7 @@ export const cardStyles = css`
   .controls {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin-top: 8px;
   }
   .controls:not(:has([data-action='climate'])) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -398,7 +394,7 @@ export const cardStyles = css`
   .action {
     border: 0;
     border-radius: 999px;
-    min-height: 46px;
+    min-height: 44px;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -623,7 +619,7 @@ export const cardStyles = css`
   }
   @container (max-width:360px) {
     .vehicle {
-      padding: 14px;
+      padding: 12px;
     }
     .identity h2 {
       font-size: 16px;
@@ -636,7 +632,7 @@ export const cardStyles = css`
       max-height: 130px;
     }
     .battery-value {
-      font-size: 38px;
+      font-size: 34px;
     }
     .controls {
       gap: 5px;

@@ -20,6 +20,7 @@ import {
   percentValue,
 } from './vehicle-state';
 import { VehicleCommands } from './commands';
+import { getImageFrame, type ImageFrame } from './image-framing';
 
 const icon = (name: string) =>
   html`<ha-icon .icon=${name} aria-hidden="true"></ha-icon>`;
@@ -36,6 +37,8 @@ export class VolvoCarsCard extends LitElement {
   @state() private expanded = false;
   @state() private unlockEntity?: string;
   @state() private imageFailed = false;
+  @state() private imageFrame?: ImageFrame & { source: string };
+  private unframedImage?: string;
   private lastImage?: string;
   private commands = new VehicleCommands(
     () => this.hass,
@@ -64,6 +67,8 @@ export class VolvoCarsCard extends LitElement {
     this.expanded = config.layout === 'full';
     this.unlockEntity = undefined;
     this.imageFailed = false;
+    this.imageFrame = undefined;
+    this.unframedImage = undefined;
   }
   getCardSize() {
     return this.config?.layout === 'compact' ? 4 : 7;
@@ -83,6 +88,7 @@ export class VolvoCarsCard extends LitElement {
       if (image !== this.lastImage) {
         this.lastImage = image;
         this.imageFailed = false;
+        this.unframedImage = undefined;
       }
     }
   }
@@ -101,6 +107,28 @@ export class VolvoCarsCard extends LitElement {
           composed: true,
         }),
       );
+  }
+  private frameImage(event: Event) {
+    const image = event.currentTarget as HTMLImageElement;
+    const source = image.getAttribute('src');
+    if (
+      !source ||
+      source === this.unframedImage ||
+      source !== hassUrl(this.hass!, this.car?.image ?? '')
+    )
+      return;
+    const frame = getImageFrame(image);
+    if (frame) this.imageFrame = { ...frame, source };
+  }
+  private imageError(source: string, framed = false) {
+    if (source !== hassUrl(this.hass!, this.car?.image ?? '')) return;
+    if (framed) {
+      // Retry with the regular image once, without entering a framing loop.
+      this.unframedImage = source;
+      this.imageFrame = undefined;
+    } else {
+      this.imageFailed = true;
+    }
   }
   private closeDialog(selector: string) {
     this.renderRoot?.querySelector<HTMLDialogElement>(selector)?.close();
@@ -372,6 +400,8 @@ export class VolvoCarsCard extends LitElement {
             ? 'Lock car'
             : 'Unlock';
     const image = hassUrl(this.hass, car.image ?? '');
+    const frame =
+      this.imageFrame?.source === image ? this.imageFrame : undefined;
     const climate =
       car.show.includes('actions') &&
       car.actions.some(
@@ -387,14 +417,6 @@ export class VolvoCarsCard extends LitElement {
       charge.active ? 'pulse' : 'static',
       charge.active || charge.tone === 'error',
     );
-    const connectionLabel =
-      charge.connection === 'connected'
-        ? 'Cable connected'
-        : charge.connection === 'disconnected'
-          ? 'Unplugged'
-          : charge.connection === 'fault'
-            ? 'Connection issue'
-            : 'Connection unavailable';
     return html`<div class="outer">
         <ha-card
           ><div class="root">
@@ -421,12 +443,26 @@ export class VolvoCarsCard extends LitElement {
                       class="vehicle-image"
                       style=${`--image-height:${car.layout === 'compact' ? car.thumb.height : car.bannerHeight}px`}
                     >
-                      <img
-                        src=${image}
-                        alt=${car.name}
-                        referrerpolicy="no-referrer"
-                        @error=${() => (this.imageFailed = true)}
-                      />
+                      ${frame
+                        ? html`<svg
+                            viewBox=${frame.viewBox}
+                            role="img"
+                            aria-label=${car.name}
+                          >
+                            <image
+                              href=${image}
+                              width=${frame.naturalWidth}
+                              height=${frame.naturalHeight}
+                              @error=${() => this.imageError(image, true)}
+                            ></image>
+                          </svg>`
+                        : html`<img
+                            src=${image}
+                            alt=${car.name}
+                            referrerpolicy="no-referrer"
+                            @load=${this.frameImage}
+                            @error=${() => this.imageError(image)}
+                          />`}
                     </div>`
                   : nothing}
                 <div class="energy">
@@ -438,7 +474,11 @@ export class VolvoCarsCard extends LitElement {
                   >
                     <span class="battery-value"
                       >${battery ?? '—'}<small>%</small></span
-                    ><span class="caption">Battery</span>
+                    ><span class="caption"
+                      >Battery${target !== undefined
+                        ? ` · Target ${target}%`
+                        : ''}</span
+                    >
                   </button>
                   <div class="range-figure">
                     <span
@@ -473,82 +513,80 @@ export class VolvoCarsCard extends LitElement {
                       ></span>`
                     : nothing}
                 </div>
-                <div class="charge-heading">
-                  ${charge.connection === 'connected'
-                    ? html`<span
-                        >${icon('mdi:power-plug')}${connectionLabel}</span
-                      >`
-                    : html`<span></span>`}${target !== undefined
-                    ? html`<span>Target ${target}%</span>`
-                    : nothing}
-                </div>
-                <button
-                  class="charging-status ${charge.tone}"
-                  @click=${() =>
-                    this.moreInfo(
-                      charge.connection === 'fault' ||
-                        charge.connection === 'unknown'
-                        ? car.entities.charging_connection
-                        : car.entities.charging_status,
-                    )}
-                >
-                  <span class="status-symbol"
-                    >${icon(
-                      charge.tone === 'error'
-                        ? 'mdi:alert-circle-outline'
-                        : charge.active
-                          ? 'mdi:battery-charging-outline'
-                          : charge.connection === 'disconnected'
-                            ? 'mdi:power-plug-off-outline'
-                            : 'mdi:ev-station',
-                    )}</span
-                  ><span class="status-copy"
-                    ><strong>${charge.label}</strong>${charge.active &&
-                    (charge.power || charge.remaining)
-                      ? html`<span
-                          >${[
-                            charge.power,
-                            charge.remaining
-                              ? `${charge.remaining} remaining`
-                              : undefined,
-                          ]
-                            .filter(Boolean)
-                            .join(' · ')}</span
+                <div class="status-overview">
+                  <button
+                    class="charging-status ${charge.tone}"
+                    @click=${() =>
+                      this.moreInfo(
+                        charge.connection === 'fault' ||
+                          charge.connection === 'unknown'
+                          ? car.entities.charging_connection
+                          : car.entities.charging_status,
+                      )}
+                  >
+                    <span class="status-symbol"
+                      >${icon(
+                        charge.tone === 'error'
+                          ? 'mdi:alert-circle-outline'
+                          : charge.active
+                            ? 'mdi:battery-charging-outline'
+                            : charge.connection === 'disconnected'
+                              ? 'mdi:power-plug-off-outline'
+                              : 'mdi:ev-station',
+                      )}</span
+                    ><span class="status-copy"
+                      ><strong>${charge.label}</strong>${charge.active &&
+                      (charge.power || charge.remaining)
+                        ? html`<span
+                            >${[
+                              charge.power,
+                              charge.remaining
+                                ? `${charge.remaining} remaining`
+                                : undefined,
+                            ]
+                              .filter(Boolean)
+                              .join(' · ')}</span
+                          >`
+                        : nothing}</span
+                    >${icon('mdi:chevron-right')}
+                  </button>
+                  <div
+                    class="openings ${openings.tone} ${openings.open.length ||
+                    openings.unknown.length
+                      ? 'needs-attention'
+                      : ''}"
+                  >
+                    <div class="opening-summary">
+                      ${icon(
+                        openings.open.length
+                          ? 'mdi:car-door'
+                          : openings.unknown.length
+                            ? 'mdi:help-circle-outline'
+                            : 'mdi:shield-check-outline',
+                      )}<span>${openings.label}</span>
+                    </div>
+                    ${openings.open.length
+                      ? html`<div class="opening-pills">
+                          ${openings.open.map(
+                            (o) =>
+                              html`<button
+                                class="opening-pill"
+                                data-opening=${o.key}
+                                @click=${() => this.moreInfo(o.entity)}
+                              >
+                                ${icon(o.icon)}${o.label}
+                              </button>`,
+                          )}
+                        </div>`
+                      : nothing}${openings.unknown.length
+                      ? html`<span class="coverage"
+                          >${openings.unknown.length}
+                          ${openings.unknown.length === 1
+                            ? 'sensor unavailable'
+                            : 'sensors unavailable'}</span
                         >`
-                      : nothing}</span
-                  >${icon('mdi:chevron-right')}
-                </button>
-                <div class="openings ${openings.tone}">
-                  <div class="opening-summary">
-                    ${icon(
-                      openings.open.length
-                        ? 'mdi:car-door'
-                        : openings.unknown.length
-                          ? 'mdi:help-circle-outline'
-                          : 'mdi:shield-check-outline',
-                    )}<span>${openings.label}</span>
+                      : nothing}
                   </div>
-                  ${openings.open.length
-                    ? html`<div class="opening-pills">
-                        ${openings.open.map(
-                          (o) =>
-                            html`<button
-                              class="opening-pill"
-                              data-opening=${o.key}
-                              @click=${() => this.moreInfo(o.entity)}
-                            >
-                              ${icon(o.icon)}${o.label}
-                            </button>`,
-                        )}
-                      </div>`
-                    : nothing}${openings.unknown.length
-                    ? html`<span class="coverage"
-                        >${openings.unknown.length}
-                        ${openings.unknown.length === 1
-                          ? 'sensor unavailable'
-                          : 'sensors unavailable'}</span
-                      >`
-                    : nothing}
                 </div>
                 <div class="controls">
                   <button
@@ -648,4 +686,4 @@ cardWindow.customCards.push({
   description: 'Battery, charging, doors, windows and controls for your Volvo.',
   preview: true,
 });
-console.info('VOLVO CARS CARD 0.6.1');
+console.info('VOLVO CARS CARD 0.6.2');
