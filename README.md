@@ -1,86 +1,95 @@
 # Volvo Cars Card
 
-A calm, car-first Home Assistant card for the official Volvo integration, in the Space Hub design language used by the other bitosome cards. One card shows one car: by default the **picture leads** as a banner with only the essentials on a scrim, and everything else stays behind a chevron. `layout: compact` is a single dense 92 px row, and `layout: full` is the larger hero card.
+A Home Assistant dashboard card for the official Volvo integration. One card per car, using the shared Space Hub surfaces, typography, icons and under-tile glows.
 
-It reads the Volvo integration's entities and **only acts when you press something** — nothing is sent to the car while the dashboard is open, and a missing or unavailable entity is shown as unavailable instead of being guessed.
+Battery, estimated range, cable connection, charging state and open doors/windows are visible together. Lock controls, climate and details stay within reach on phones. The picture supports the overview without hiding the information behind it.
 
 ## Install
 
-1. HACS → **Custom repositories** → `https://github.com/bitosome/volvo-cars-card`, category **Dashboard** → download the latest release.
-2. Reload the browser, then add **Volvo Cars Card** to a dashboard.
+Add `https://github.com/bitosome/volvo-cars-card` in HACS **Custom repositories**, category **Dashboard**, and download the latest release. Reload the browser, then add **Volvo Cars Card**.
 
-Manual install: build with `npm ci && npm run build`, copy `dist/volvo-cars-card.js` to `/config/www/`, and register `/local/volvo-cars-card.js` as a JavaScript module resource.
+For manual installation, run `npm ci && npm run build`, copy `dist/volvo-cars-card.js` to `/config/www/`, and register `/local/volvo-cars-card.js` as a JavaScript module resource.
 
-## Configure
+## Configuration
 
 ```yaml
 type: custom:volvo-cars-card
-car: ex30                 # everything below is derived from this
-layout: banner            # banner (default) leads with the picture; compact is one row; full is the hero
-name: Volvo EX30          # optional; defaults to the lock's own name
-image: /api/image/serve/cfc5e4693a59de8d2a662b2391509297/original
-show: [charging, openings, actions]   # optional; this is the default
+car: ex30
+name: Volvo EX30
+image: /local/my-car.png
+layout: banner
+show: [charging, openings, actions, odometer]
 ```
 
-`car: ex30` derives every entity from the integration's naming, so `lock.volvo_ex30_lock`, `sensor.volvo_ex30_battery`, `sensor.volvo_ex30_charging_power`, `binary_sensor.volvo_ex30_tank_lid`, `button.volvo_ex30_flash` and the rest are found without listing them. Use `car: xc40` for the other car, or `prefix: volvo_ex30_` if the car key does not match the entity prefix.
+The card derives entity IDs such as `lock.volvo_ex30_lock` from `car`. It does not search for a similar entity or another car when a reading is missing. `prefix: volvo_my_car_` overrides that naming prefix. Use the visual editor or YAML for renamed entities:
 
-Optional keys:
+```yaml
+entities:
+  lock: lock.my_car
+  battery: sensor.my_car_battery
+openings:
+  door_front_left: binary_sensor.my_driver_door
+actions:
+  start_climatisation: button.my_car_precondition
+```
 
-| Key | Meaning |
+| Option | Meaning |
 | --- | --- |
-| `name` | Display name. Defaults to the lock entity's friendly name without “Lock”. |
-| `image` | Picture URL. Defaults to the `entity_picture` of `image_entity`. |
-| `image_entity` | Entity whose picture is used. Defaults to the car's `device_tracker.…_location`. |
-| `image_size` | `small`, `medium` (default) or `large`. Banner picture: 130 / **160** / 210 px tall. Compact thumbnail: 96×54 / **128×72** / 160×90. |
-| `image_height` | Explicit picture height in pixels (32–260), overriding `image_size`; the compact thumbnail derives its width from the 16:9 car pictures. |
-| `entities` | Per-slot overrides, e.g. `{lock: lock.other, battery: sensor.other_battery}`. Slots: `lock`, `battery`, `range`, `odometer`, `charging_connection`, `charging_status`, `charging_power`, `charging_power_status`, `charging_type`, `charging_time`, `charging_target`. |
-| `show` | Which detail rows the disclosure can show: `charging`, `openings`, `actions`, `odometer`. Defaults to the first three. |
-| `layout` | `banner` (default), `compact` or `full`. `full` is the hero card with the rows always open; `compact` is the 92 px row. |
+| `car` / `prefix` | Car key or explicit entity prefix; one is required. |
+| `name` | Display name; otherwise derived from the lock name. |
+| `image` | Image URL; existing HA uploaded-image URLs work. |
+| `image_entity` | Entity providing `entity_picture`; defaults to the car's location tracker. |
+| `image_size` | `small`, `medium` (default), or `large`. |
+| `image_height` | Explicit height, 32–260 px. The image is contained rather than cropped. |
+| `layout` | `banner` (overview, default), `compact` (smaller image), or `full` (details initially expanded). All share the same state interpretation and essential controls. |
+| `show` | Optional detail sections: `charging`, `openings`, `actions`, `odometer`. Defaults to the first three. `[]` hides these extras. Core battery, charging and opening status remain visible. |
+| `entities` | Overrides for `lock`, `battery`, `range`, `odometer`, `charging_connection`, `charging_status`, `charging_power`, `charging_power_status`, `charging_type`, `charging_time`, `charging_target`. |
+| `openings` | Overrides for `door_front_left/right`, `door_rear_left/right`, `window_front_left/right`, `window_rear_left/right`, `bonnet`, `sunroof`, `tailgate`, `tank_lid`. |
+| `actions` | Overrides for `flash`, `honk`, `honk_flash`, `start_climatisation`, `stop_climatisation`. |
 
-### Pictures
+Overrides must use the correct domains: lock, sensor, binary_sensor, or button respectively. The tank-lid sensor is presented as the charge port for these electric cars.
 
-The Volvo integration exposes no image entity. Uploaded pictures live in Home Assistant and are served at `/api/image/serve/<id>/original`, which is what this card uses by default when the tracker carries an `entity_picture`. Any `/local/...` file or absolute URL also works.
+## Charging interpretation
 
-## What it shows
+The card separates plug connection, charging state and the power signal. A connected cable does not mean charging is running.
 
-**Banner (default)** — a clean picture at **160 px** tall (cropped 16:9, so a 1920×1080 upload shows the car), with nothing written on the car: just a whisper of a bottom gradient so the picture edge separates from the band. Below it, one **information band** (~56 px) holds the name as the anchor, the battery figure with its level bar and charge-target marker, distance-to-empty beside it, and the lock and chevron as light icon buttons — no rings. The maker eyebrow only appears when the name does not already say *Volvo*.
+Home Assistant explicitly documents that Volvo's `charging_power_status: fault` can occur when a connected charger is paused or not supplying power. That signal alone therefore **does not create a red fault**. An idle connected car shows **Connected · not charging**; the raw power signal and its explanation remain in Details. Normal power states such as `initialization`, `power_available_but_not_activated` and `providing_power` are handled explicitly. See the [official integration's troubleshooting guidance](https://www.home-assistant.io/integrations/volvo/#the-charging_power_status-entity-shows-fault-as-value-or-is-unavailable).
 
-Instead of a stack of chips the band carries **at most one status phrase**, in one accent colour, by priority: a car-reported fault (red, *Plugged · charging fault*) outranks an opening (amber, *Charge port open*, or *2 open*) which outranks simply being plugged in or charging (quiet, *Charging · 11.2 kW*). Below the band there is at most **one** line, and only when it adds something: the attributed fault guidance, or the names when several openings are listed — a single opening is already the phrase. Measured at 500 px wide: **160 px picture + ~56 px band**, so 216 px quiet and 236 px with a fault line. With no picture configured the card is just the band.
+A charging-status `error` or connection `fault` is shown as an error. A disconnected cable makes old charging power/time readings irrelevant; inconsistent raw readings remain available in Details. Scheduled, complete, discharging and unavailable states have distinct labels. Power supports W/kW; remaining-time estimates appear only while charging. The battery target is a reported value, not an editable control.
 
-**Compact** — one row, four zones:
+The Volvo integration does not expose direct start/stop charging commands. Use the charger integration for those; this card does not invent commands or infer charger schedules.
 
-- a **128×72** thumbnail cropped from the car picture (`object-fit: cover`, so a 1920×1080 upload crops to the car), or an MDI car icon when no picture is configured;
-- the name, the battery percentage as the figure that matters with a thin level bar and the charge-target marker, and distance-to-empty beside it;
-- chips, only when they carry information: plugged in (`kW` while charging, otherwise *Plugged*), an amber opening chip (*Charge port open*, or *N open* when several), and a red chip **only** for a fault the car reports;
-- the lock as a compact icon pill — optimistic *Locking…*/*Unlocking…*, refused when the lock is unavailable.
+## Openings and controls
 
-Nothing abnormal means nothing extra: a normal car is a single row (**92 px** at 500 px wide, 128×72 thumbnail). An opening adds an amber chip — named when there is only one, e.g. *Charge port open* — and several openings add one quiet line naming them (*"front left door, charge port open."*). A fault the **car itself reports** adds a red chip and one line, *"The car reports a charging fault — check the cable and the charging station."* Worst case measured: **139 px** (115 px for an opening alone, 133 px at `image_size: large`).
+- Every open door/window is named in a visible pill; charging information remains visible alongside it.
+- An open charge port is expected while a cable is connected. It is excluded from opening warnings in that situation.
+- Missing or unavailable readings never become “closed.” Core door/window/tailgate sensors are required for a complete summary; unsupported optional openings are identified in Details.
+- **Unlock** asks for confirmation, bound to the same car and action. **Lock car** acts explicitly when the car is unlocked. Unknown/transitional states disable the control. Code-required locks use Home Assistant's native controls.
+- Commands are serialized. Lock feedback stays pending until the requested lock state is reported; an unrelated telemetry update cannot confirm it. Errors and timeouts remain visible. No retries are sent automatically.
+- **Climate** opens the supported precondition/stop controls. Other supported remote buttons live under Details. Buttons may legitimately be `unknown` before first use; missing/unavailable buttons are omitted.
+- Details contains readings, opening sensors, optional odometer, location more-info and reading timestamps. Timestamps describe changes received by Home Assistant, not proof of a live connection. No periodic refresh is forced by the card.
 
-Everything else is behind the chevron: the `show` rows (charging detail, the full openings list, odometer, quick actions) are collapsed until you expand them. Tapping the identity opens more-info for the battery, the thumbnail for the car's location.
+Nothing is sent when the dashboard loads or a detail panel opens. Service acceptance does not prove a button's physical effect; the feedback says “request sent.”
 
-**`layout: full`** is the hero card — large 16:9 picture, battery and range as figures, and the rows always open (398 px at 500 px wide with a picture).
-
-In both layouts:
-
-- **Charging** — plugged in: state, power and time to target. Not plugged in: a single quiet line. A charger `fault` or `no_power_available` is surfaced as a fault, never as normal charging, and only while the car is actually plugged in.
-- **Openings** — quiet when everything is shut, and always informational (amber, never the fault treatment). When something is open only those items are named; the tank lid is labelled **Charge port** because that is what it is on these cars. An open charge port is an opening like any other: it never produces a fault chip, a fault line or the red glow.
-- **Faults** — red is reserved for what the car reports through its charging sensors. A `fault` is red (*Charging fault*); `no_power_available` while plugged in is amber (*No power*), not a fault. The wording always attributes the reading to the car, so an open port can never read as its cause.
-- **A connected cable means the port is open.** Volvo's charge-port sensor lags plug events — it can report closed on a car with a cable in — so while `charging_connection_status` is `connected` the port is never treated as an opening (an open flap there is expected, not a nag) and its "closed" is never used to claim everything is shut. The contradiction is surfaced instead, in the detail tile: *"Charge port sensor reports closed while a cable is connected."*, with the port's entity for more-info. While unplugged the sensor is trusted, so an open port is reported as an ordinary amber opening.
-- **Quick actions** — flash, honk, honk & flash, precondition and stop precondition. Each button appears only when its entity is configured in the integration and available, so an unsupported car just shows fewer buttons.
-
-## Design
-
-`src/shared/design-tokens.ts` and `src/shared/glow.ts` are vendored from [space-hub-card](https://github.com/bitosome/space-hub-card) (MIT), the canonical source for the tile surfaces, typography, radii, shadows and under-tile glow. `src/styles/card.ts` only lays out this card. Reduced motion is honoured, and colours resolve from Home Assistant's theme variables so light and dark themes both work.
-
-## Develop
+## Development and maintenance
 
 ```sh
 npm ci
-npm run check     # typecheck, build, tests
+npm run check
+python3 -m http.server 8772 --bind 127.0.0.1
+# Open /preview/ for synthetic scenarios, sizes and light/dark themes.
 ```
 
-`npm run check` builds `dist/volvo-cars-card.js` and runs the test suite against that built bundle with happy-dom, using mocked states and services. Tests never touch a car.
+- `src/vehicle-state.ts`: pure charging/opening interpretation and unit handling.
+- `src/commands.ts`: command guards, acknowledgement, lifecycle and feedback.
+- `src/volvo-cars-card.ts`: presentation and explicit user interactions.
+- `src/editor.ts`, `src/types.ts`: configuration editor and validation.
+- `src/styles/card.ts`: responsive layout; `src/shared/` retains Space Hub provenance.
 
-## Licence
+Tests use synthetic states, fake services and a DOM fixture. They never operate a vehicle. The release workflow publishes the tested bundle for an annotated `v*` tag matching `package.json`; generated bundles stay out of the branch.
 
-MIT
+Production uses HA's `ha-icon`. Preview icon paths are from [Material Design Icons](https://github.com/Templarian/MaterialDesign), Apache-2.0; the generic SVG vehicle is only a local demonstration illustration. No household data or production images belong in the public repository.
+
+## License
+
+MIT; vendored shared files retain their source provenance and notices.

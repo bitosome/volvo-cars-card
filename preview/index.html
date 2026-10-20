@@ -1,139 +1,309 @@
 <!doctype html>
 <html lang="en">
-<head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Volvo Cars Card preview</title>
-<!--
-  Offline preview: mocked Home Assistant states, no connection to Home Assistant and
-  no command is ever sent. Build first (`npm run build`), then serve the repository
-  root (for example `python3 -m http.server 8767`) and open /preview/.
-  Each frame reports the measured height of its card so density can be checked.
--->
-<style>
-  :root { color-scheme: dark; --card-background-color:#20222f; --ha-card-background:#20222f; --primary-text-color:#dedff5; --secondary-text-color:#acb1cc; --divider-color:rgba(255,255,255,.08); --accent-color:#8fb4ff; }
-  body { margin:0; padding:24px; background:#171923; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; display:grid; gap:22px; grid-template-columns:repeat(auto-fit,minmax(360px,500px)); justify-content:center; align-items:start; }
-  .frame { display:grid; gap:8px; }
-  .frame h2 { font-size:13px; color:#acb1cc; font-weight:600; margin:0; }
-  .frame.phone { width: 390px; max-width: 100%; }
-  .frame .measure { font-size:11px; color:#7f86a3; font-variant-numeric:tabular-nums; margin:0; }
-</style>
-</head>
-<body>
-<div class="frame"><h2>banner · live EX30: cable in, port open (expected), the car reports a charging fault</h2><volvo-cars-card id="ex30"></volvo-cars-card><p class="measure" id="m-ex30"></p></div>
-<div class="frame"><h2>banner · live XC40: cable in while the port sensor says closed — no nag, and the detail tile says so</h2><volvo-cars-card id="xc40"></volvo-cars-card><p class="measure" id="m-xc40"></p></div>
-<div class="frame"><h2>banner · one opening: the amber phrase alone, no line</h2><volvo-cars-card id="open"></volvo-cars-card><p class="measure" id="m-open"></p></div>
-<div class="frame"><h2>banner · the quiet case: unplugged with everything shut</h2><volvo-cars-card id="quiet"></volvo-cars-card><p class="measure" id="m-quiet"></p></div>
-<div class="frame phone" id="phone-frame"><h2>banner · phone width (390 px): the phrase takes its own line</h2><volvo-cars-card id="phone"></volvo-cars-card><p class="measure" id="m-phone"></p></div>
-<div class="frame"><h2>compact · live EX30</h2><volvo-cars-card id="compact"></volvo-cars-card><p class="measure" id="m-compact"></p></div>
-<div class="frame"><h2>full · live EX30 (the hero layout)</h2><volvo-cars-card id="full"></volvo-cars-card><p class="measure" id="m-full"></p></div>
-<script>
-  // Preview-only stubs: Home Assistant provides <ha-icon>, and serves the real pictures
-  // at /api/image/serve/<id>/original. Offline we draw glyphs and a neutral car image so
-  // the composition is visible.
-  const GLYPHS = { lock: '\u{1F512}', 'lock-open-variant': '\u{1F513}', 'lock-alert': '\u26A0', 'chevron-down': '\u2304',
-    'power-plug': '\u{1F50C}', 'power-plug-off-outline': '\u26D4', 'battery-charging': '\u{1F50B}', car: '\u{1F697}',
-    'car-door': '\u{1F6AA}', 'car-back': '\u{1F9F3}', 'window-closed': '\u25AD', 'window-open': '\u25A2', engine: '\u2699',
-    'ev-station': '\u26A1', 'alert-circle-outline': '\u26A0', 'alert-outline': '\u26A0', 'check-circle-outline': '\u2713',
-    'help-circle-outline': '?', counter: '\u{1F9ED}', 'map-marker-distance': '\u{1F4CD}', 'progress-clock': '\u23F3',
-    'information-outline': '\u2139', 'lightbulb-on-outline': '\u{1F4A1}', 'bullhorn-outline': '\u{1F4E3}', bullhorn: '\u{1F4E3}',
-    snowflake: '\u2744', 'snowflake-off': '\u2745' };
-  customElements.define('ha-icon', class extends HTMLElement {
-    set icon(value) { this._icon = value; this.render(); }
-    get icon() { return this._icon; }
-    connectedCallback() { this.render(); }
-    render() { this.textContent = GLYPHS[String(this._icon ?? '').replace(/^mdi:/, '')] ?? '\u25CF'; this.style.fontSize = '15px'; this.style.lineHeight = '1'; }
-  });
-  // A stand-in car picture so the banner can be judged offline.
-  window.PREVIEW_CAR = 'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3b4360"/><stop offset="1" stop-color="#1d2030"/></linearGradient></defs><rect width="1600" height="900" fill="url(#g)"/><g fill="#8fb4ff" opacity=".85"><path d="M300 560c0-30 20-52 50-58l120-26 96-92c16-15 38-24 60-24h250c26 0 50 10 68 28l70 70 118 24c34 7 58 36 58 71v34c0 12-10 22-22 22H322c-12 0-22-10-22-22z"/><circle cx="520" cy="640" r="62" fill="#1d2030"/><circle cx="1080" cy="640" r="62" fill="#1d2030"/><circle cx="520" cy="640" r="26"/><circle cx="1080" cy="640" r="26"/></g><text x="800" y="820" fill="#8fb4ff" opacity=".55" font-family="sans-serif" font-size="42" text-anchor="middle">preview stand-in for the car picture</text></svg>`);
-</script>
-<script type="module">
-  await import('../dist/volvo-cars-card.js');
-  const entity = (state, attributes = {}) => ({ state, attributes, last_changed: new Date().toISOString() });
-  const OPENINGS = ['door_front_left','door_front_right','door_rear_left','door_rear_right','window_front_left','window_front_right','window_rear_left','window_rear_right','bonnet','sunroof','tailgate','tank_lid'];
-
-  // Real readings taken from the live system, so the preview never shows a combination
-  // the cars cannot produce.
-  const live = {
-    ex30: { lock: 'locked', battery: '41.0', range: '138', odometer: '36057', connection: 'connected', status: 'idle',
-            power: '0', power_status: 'fault', type: 'none', time: '121', target: '100', openings: ['tank_lid'] },
-    xc40: { lock: 'locked', battery: '55.0', range: '160', odometer: '85138', connection: 'connected', status: 'idle',
-            power: '0', power_status: 'no_power_available', type: 'ac', time: '0', target: '90', openings: [] },
-  };
-
-  function carStates(car, readings) {
-    const p = `volvo_${car}_`;
-    const set = {
-      [`lock.${p}lock`]: entity(readings.lock, { friendly_name: `Volvo ${car.toUpperCase()} Lock` }),
-      [`sensor.${p}battery`]: entity(readings.battery, { unit_of_measurement: '%' }),
-      [`sensor.${p}distance_to_empty_battery`]: entity(readings.range, { unit_of_measurement: 'km' }),
-      [`sensor.${p}odometer`]: entity(readings.odometer, { unit_of_measurement: 'km' }),
-      [`sensor.${p}charging_connection_status`]: entity(readings.connection),
-      [`sensor.${p}charging_status`]: entity(readings.status),
-      [`sensor.${p}charging_power`]: entity(readings.power, { unit_of_measurement: 'W' }),
-      [`sensor.${p}charging_power_status`]: entity(readings.power_status),
-      [`sensor.${p}charging_type`]: entity(readings.type),
-      [`sensor.${p}estimated_charging_time`]: entity(readings.time, { unit_of_measurement: 'min' }),
-      [`sensor.${p}target_battery_charge_level`]: entity(readings.target, { unit_of_measurement: '%' }),
-      [`device_tracker.${p}location`]: entity('not_home'),
-    };
-    for (const key of OPENINGS) set[`binary_sensor.${p}${key}`] = entity(readings.openings.includes(key) ? 'on' : 'off');
-    for (const key of ['flash','honk','honk_flash','start_climatisation','stop_climatisation']) set[`button.${p}${key}`] = entity('unknown');
-    return set;
-  }
-
-  const states = {
-    ...carStates('ex30', live.ex30),
-    ...carStates('xc40', live.xc40),
-  };
-  const quiet = { ...states, ...carStates('xc40', { ...live.xc40, connection: 'disconnected', power_status: 'no_power_available' }) };
-
-  const makeHass = map => ({
-    states: map,
-    callService: async (domain, service, data) => console.info('preview would call', domain, service, data),
-    hassUrl: path => path,
-  });
-
-  // The pictures the dashboard already uses, straight from Home Assistant's image store.
-  // In Home Assistant these are the real uploads, e.g.
-  // /api/image/serve/f31713098a298d1775d4b2e181ddfccd/original
-  const IMAGES = { ex30: window.PREVIEW_CAR, xc40: window.PREVIEW_CAR };
-
-  const cards = [
-    ['ex30', { car: 'ex30', name: 'Volvo EX30', image: IMAGES.ex30 }, states],
-    ['xc40', { car: 'xc40', name: 'Volvo XC40', image: IMAGES.xc40 }, states],
-    ['open', { car: 'xc40', name: 'Volvo XC40', image: IMAGES.xc40 }, { ...quiet, 'binary_sensor.volvo_xc40_tank_lid': entity('on') }],
-    ['quiet', { car: 'xc40', name: 'Volvo XC40', image: IMAGES.xc40 }, quiet],
-    ['phone', { car: 'ex30', name: 'Volvo EX30', image: IMAGES.ex30 }, states],
-    ['compact', { car: 'ex30', name: 'Volvo EX30', layout: 'compact', image: IMAGES.ex30 }, states],
-    ['full', { car: 'ex30', name: 'Volvo EX30', layout: 'full', image: IMAGES.ex30 }, states],
-  ];
-  for (const [id, config, map] of cards) {
-    const card = document.getElementById(id);
-    card.setConfig({ type: 'custom:volvo-cars-card', ...config });
-    card.hass = makeHass(map);
-  }
-  await Promise.all(cards.map(([id]) => document.getElementById(id).updateComplete));
-  // Show the port-sensor contradiction where the card reports it.
-  const xc40 = document.getElementById('xc40');
-  xc40.shadowRoot.querySelector('[data-action="disclosure"]').click();
-  await xc40.updateComplete;
-
-  const report = () => {
-    for (const [id] of cards) {
-      const card = document.getElementById(id);
-      const media = card.shadowRoot.querySelector('.banner-media');
-      const row = card.shadowRoot.querySelector('.surface.compact');
-      const target = document.getElementById(`m-${id}`);
-      const box = media ?? row ?? card.shadowRoot.querySelector('.hero');
-      if (box && target) {
-        const kind = media ? `banner (${Math.round(media.getBoundingClientRect().height)} px picture)` : row ? 'compact row' : 'hero';
-        target.textContent = `${kind}: ${Math.round(card.getBoundingClientRect().height)} px card at ${Math.round(card.getBoundingClientRect().width)} px wide`;
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Volvo Cars Card · Preview</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --ha-card-background: #27293b;
+        --card-background-color: #27293b;
+        --primary-background-color: #1b1d2a;
+        --primary-text-color: #dedff5;
+        --secondary-text-color: #adb4cf;
+        --divider-color: #aeb6d524;
+        --accent-color: #bba3f2;
+        --primary-color: #bba3f2;
+        background: #141621;
+        color: var(--primary-text-color);
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       }
-    }
-  };
-  report();
-  window.addEventListener('resize', report);
-</script>
-</body>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        padding: 32px 20px;
+      }
+      main {
+        max-width: 1080px;
+        margin: auto;
+      }
+      header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+        flex-wrap: wrap;
+        margin-bottom: 26px;
+      }
+      h1 {
+        font-size: 28px;
+        font-weight: 650;
+        letter-spacing: -0.04em;
+        margin: 0 0 7px;
+      }
+      p {
+        color: var(--secondary-text-color);
+        font-size: 13px;
+        line-height: 1.5;
+        margin: 0;
+      }
+      .controls {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      button,
+      select {
+        min-height: 44px;
+        border: 1px solid var(--divider-color);
+        border-radius: 12px;
+        color: inherit;
+        background: var(--ha-card-background);
+        font: inherit;
+        font-size: 12px;
+        padding: 9px 12px;
+      }
+      .cards {
+        display: grid;
+        grid-template-columns: repeat(
+          auto-fit,
+          minmax(min(100%, var(--width, 480px)), var(--width, 480px))
+        );
+        justify-content: center;
+        align-items: start;
+        gap: 22px;
+      }
+      .cards > * {
+        min-width: 0;
+      }
+      .notice {
+        margin: 24px 0;
+        text-align: center;
+        font-size: 11px;
+      }
+      #log {
+        font-size: 12px;
+        color: var(--secondary-text-color);
+        overflow-wrap: anywhere;
+      }
+      .light {
+        color-scheme: light;
+        --ha-card-background: #f5f5fa;
+        --card-background-color: #f5f5fa;
+        --primary-background-color: #fff;
+        --primary-text-color: #30364b;
+        --secondary-text-color: #626a80;
+        --divider-color: #4d567924;
+        --accent-color: #7959ab;
+        --primary-color: #7959ab;
+        background: #eaeaf2;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <div>
+          <h1>Your cars, at a glance.</h1>
+          <p>Battery, charging and the things to check before you leave.</p>
+        </div>
+        <div class="controls">
+          <select aria-label="Scenario" id="scenario">
+            <option value="idle">Parked</option>
+            <option value="waiting" selected>Connected · charger paused</option>
+            <option value="charging">Charging</option>
+            <option value="open">Open door & window</option>
+            <option value="fault">Charging error</option>
+            <option value="unknown">Unavailable readings</option></select
+          ><select id="width" aria-label="Card width">
+            <option>320</option>
+            <option>390</option>
+            <option selected>480</option>
+            <option>600</option></select
+          ><button id="theme">Light theme</button>
+        </div>
+      </header>
+      <div class="cards">
+        <volvo-cars-card id="car-a"></volvo-cars-card
+        ><volvo-cars-card id="car-b"></volvo-cars-card>
+      </div>
+      <p class="notice">
+        Synthetic preview · no car connected · actions are simulated
+      </p>
+      <div id="log" role="status"></div>
+    </main>
+    <script type="module">
+      import { paths } from './icons.js';
+      customElements.define(
+        'ha-icon',
+        class extends HTMLElement {
+          constructor() {
+            super();
+            this.attachShadow({ mode: 'open' });
+            this.shadowRoot.innerHTML =
+              '<style>:host{display:inline-flex}svg{display:block;width:100%;height:100%;fill:currentColor}</style><svg viewBox="0 0 24 24" aria-hidden="true"><path/></svg>';
+          }
+          set icon(v) {
+            this.value = v;
+            this.paint();
+          }
+          get icon() {
+            return this.value;
+          }
+          connectedCallback() {
+            this.paint();
+          }
+          paint() {
+            this.shadowRoot
+              .querySelector('path')
+              .setAttribute(
+                'd',
+                paths[
+                  (this.value ?? this.getAttribute('icon') ?? '').replace(
+                    'mdi:',
+                    '',
+                  )
+                ] ?? paths['information-outline'],
+              );
+          }
+        },
+      );
+      await import('../dist/volvo-cars-card.js');
+      const cars = [
+        ['car-a', 'xc40', 73, 220, 90],
+        ['car-b', 'ex30', 26, 87, 100],
+      ];
+      const doors = [
+        'door_front_left',
+        'door_front_right',
+        'door_rear_left',
+        'door_rear_right',
+        'window_front_left',
+        'window_front_right',
+        'window_rear_left',
+        'window_rear_right',
+        'bonnet',
+        'tailgate',
+        'sunroof',
+        'tank_lid',
+      ];
+      const buttons = [
+        'start_climatisation',
+        'stop_climatisation',
+        'flash',
+        'honk',
+        'honk_flash',
+      ];
+      const ent = (state, attributes = {}) => ({
+        state: String(state),
+        attributes,
+        last_updated: '2026-10-20T10:00:00Z',
+      });
+      function update() {
+        const scenario = document.querySelector('#scenario').value;
+        for (const [id, key, battery, range, target] of cars) {
+          const node = document.getElementById(id),
+            p = 'volvo_' + key + '_',
+            connected = scenario !== 'idle';
+          const states = {
+            ['lock.' + p + 'lock']: ent('locked'),
+            ['sensor.' + p + 'battery']: ent(battery),
+            ['sensor.' + p + 'distance_to_empty_battery']: ent(range, {
+              unit_of_measurement: 'km',
+            }),
+            ['sensor.' + p + 'target_battery_charge_level']: ent(target),
+            ['sensor.' + p + 'charging_connection_status']: ent(
+              connected ? 'connected' : 'disconnected',
+            ),
+            ['sensor.' + p + 'charging_status']: ent(
+              scenario === 'charging'
+                ? 'charging'
+                : scenario === 'fault'
+                  ? 'error'
+                  : 'idle',
+            ),
+            ['sensor.' + p + 'charging_power_status']: ent(
+              scenario === 'charging'
+                ? 'providing_power'
+                : scenario === 'waiting'
+                  ? 'fault'
+                  : 'no_power_available',
+            ),
+            ['sensor.' + p + 'charging_power']: ent(
+              scenario === 'charging' ? 7400 : 0,
+              { unit_of_measurement: 'W' },
+            ),
+            ['sensor.' + p + 'estimated_charging_time']: ent(72, {
+              unit_of_measurement: 'min',
+            }),
+            ['sensor.' + p + 'charging_type']: ent('ac'),
+            ['sensor.' + p + 'odometer']: ent(18400, {
+              unit_of_measurement: 'km',
+            }),
+            ['device_tracker.' + p + 'location']: ent('home'),
+          };
+          for (const door of doors)
+            states['binary_sensor.' + p + door] = ent(
+              scenario === 'open' &&
+                ['door_rear_left', 'window_front_right'].includes(door)
+                ? 'on'
+                : 'off',
+            );
+          for (const action of buttons)
+            states['button.' + p + action] = ent('unknown');
+          if (scenario === 'unknown')
+            for (const [id, e] of Object.entries(states))
+              if (!id.startsWith('button.')) e.state = 'unavailable';
+          const hass = {
+            states,
+            callService: async (domain, service, data) => {
+              document.querySelector('#log').textContent =
+                `Simulated ${domain}.${service} · ${data.entity_id}`;
+              if (domain === 'lock') {
+                states[data.entity_id] = ent(
+                  service === 'lock' ? 'locked' : 'unlocked',
+                );
+                node.hass = { ...hass, states: { ...states } };
+              }
+            },
+            hassUrl: (path) => path,
+          };
+          node.setConfig({
+            type: 'custom:volvo-cars-card',
+            car: key,
+            name: 'Volvo ' + key.toUpperCase(),
+            image: './car.svg',
+            show: ['charging', 'openings', 'actions', 'odometer'],
+          });
+          node.hass = hass;
+          node.addEventListener(
+            'hass-more-info',
+            (event) =>
+              (document.querySelector('#log').textContent =
+                'Simulated entity details · ' + event.detail.entityId),
+          );
+        }
+      }
+      document.querySelector('#scenario').addEventListener('change', update);
+      document
+        .querySelector('#width')
+        .addEventListener('change', (event) =>
+          document
+            .querySelector('.cards')
+            .style.setProperty('--width', event.target.value + 'px'),
+        );
+      document.querySelector('#theme').onclick = (event) => {
+        document.documentElement.classList.toggle('light');
+        event.target.textContent = document.documentElement.classList.contains(
+          'light',
+        )
+          ? 'Dark theme'
+          : 'Light theme';
+      };
+      update();
+    </script>
+  </body>
 </html>
