@@ -265,7 +265,7 @@ export class VolvoCarsCardEditor extends LitElement {
                   ? 'Overview'
                   : value === 'compact'
                     ? 'Compact'
-                    : 'Expanded details'}
+                    : 'Overview (legacy full)'}
               </option>`,
           )}
         </select></label

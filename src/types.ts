@@ -89,7 +89,7 @@ export function imageSize(height: number): { width: number; height: number } {
 
 export interface VolvoCardConfig {
   type: string;
-  /** `banner` is the overview, `compact` uses a smaller picture, `full` starts with details open. */
+  /** `banner` is the overview, `compact` uses a smaller picture; legacy `full` also uses the overview. */
   layout?: Layout;
   /** Car key used to derive every entity id, e.g. `ex30` for `volvo_ex30_*`. */
   car?: string;

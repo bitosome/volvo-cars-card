@@ -118,6 +118,8 @@ async function fixture({
 const root = (card) => card.shadowRoot;
 const text = (node) => node.textContent.replace(/\s+/g, ' ').trim();
 const cardText = (card) => text(root(card).querySelector('ha-card'));
+const detailsDialog = (card) => root(card).querySelector('.details-dialog');
+const dialogText = (card) => text(detailsDialog(card));
 const action = (card, name) =>
   root(card).querySelector(`[data-action="${name}"]`);
 const charge = (card) => root(card).querySelector('.charging-status');
@@ -128,8 +130,8 @@ async function update(card, patch) {
   card.hass = { ...card.hass, states: { ...card.hass.states, ...patch } };
   await settle(card);
 }
-async function expand(card) {
-  if (action(card, 'disclosure').getAttribute('aria-expanded') !== 'true') {
+async function openDetails(card) {
+  if (!detailsDialog(card).open) {
     action(card, 'disclosure').click();
     await settle(card);
   }
@@ -159,23 +161,75 @@ test('loading exposes battery, range, charging and openings without sending comm
   assert.deepEqual(calls, []);
 });
 for (const layout of ['banner', 'compact', 'full']) {
-  test(`${layout} keeps essential information visible and details disclosure truthful`, async () => {
+  test(`${layout} opens details in a modal without inserting them into the dashboard`, async () => {
     const { card, calls } = await fixture({ config: { ...CONFIG, layout } });
     assert.ok(charge(card));
     assert.ok(openings(card));
     assert.ok(action(card, 'identity'));
     assert.doesNotMatch(cardText(card), /\[object /);
-    for (let index = 0; index < 3; index++) {
-      const expanded =
-        action(card, 'disclosure').getAttribute('aria-expanded') === 'true';
-      assert.equal(!!root(card).querySelector('.details'), expanded);
-      action(card, 'disclosure').click();
+    const overview = root(card).querySelector('ha-card');
+    const initialText = cardText(card);
+    assert.equal(detailsDialog(card).open, false);
+    assert.equal(
+      action(card, 'disclosure').getAttribute('aria-haspopup'),
+      'dialog',
+    );
+    for (let index = 0; index < 2; index++) {
+      await openDetails(card);
+      assert.equal(detailsDialog(card).open, true);
+      assert.ok(detailsDialog(card).querySelector('.details'));
+      assert.equal(overview.contains(detailsDialog(card)), false);
+      assert.equal(overview.querySelector('.details'), null);
+      assert.equal(cardText(card), initialText);
+      action(card, 'close-details').click();
       await settle(card);
-      assert.equal(!!root(card).querySelector('.details'), !expanded);
+      assert.equal(detailsDialog(card).open, false);
+      assert.equal(detailsDialog(card).querySelector('.details'), null);
     }
     assert.deepEqual(calls, []);
   });
 }
+test('native details cancellation clears its contents and allows reopening', async () => {
+  const { card, calls } = await fixture();
+  await openDetails(card);
+  const dialog = detailsDialog(card);
+  // Model the native Escape protocol: cancel, then close unless prevented.
+  if (dialog.dispatchEvent(new Event('cancel', { cancelable: true }))) {
+    dialog.close();
+  }
+  await settle(card);
+  assert.equal(dialog.open, false);
+  assert.equal(dialog.querySelector('.details'), null);
+  await openDetails(card);
+  assert.equal(dialog.open, true);
+  assert.ok(dialog.querySelector('.details'));
+  assert.deepEqual(calls, []);
+});
+test('details closes on car changes and disconnect, including a pending open', async () => {
+  const { card, calls } = await fixture({
+    state: { ...states(), ...states('xc40') },
+  });
+  await openDetails(card);
+  card.setConfig({ ...CONFIG, car: 'xc40' });
+  await settle(card);
+  assert.equal(detailsDialog(card).open, false);
+  assert.equal(detailsDialog(card).querySelector('.details'), null);
+
+  action(card, 'disclosure').click();
+  card.setConfig(CONFIG);
+  await settle(card);
+  assert.equal(
+    detailsDialog(card).open,
+    false,
+    'a pending open belongs to the old card configuration',
+  );
+  await openDetails(card);
+  const dialog = detailsDialog(card);
+  assert.equal(dialog.open, true);
+  card.remove();
+  assert.equal(dialog.open, false);
+  assert.deepEqual(calls, []);
+});
 test('an explicit picture wins; missing or failed pictures leave usable controls', async () => {
   const pictured = await fixture({
     config: { ...CONFIG, image: '/local/example-car.png' },
@@ -557,7 +611,7 @@ test('code-protected locks open HA controls instead of bypassing the code', asyn
   assert.deepEqual(calls, []);
   assert.equal(root(card).querySelector('.unlock-dialog').open, false);
 });
-test('service failures stay visible and accessible with details collapsed', async () => {
+test('service failures stay visible and accessible with details closed', async () => {
   const { card } = await fixture({
     state: states('ex30', { 'lock.volvo_ex30_lock': entity('unlocked') }),
     service: async () => {
@@ -570,6 +624,11 @@ test('service failures stay visible and accessible with details collapsed', asyn
   assert.equal(feedback(card).getAttribute('role'), 'alert');
   assert.match(text(feedback(card)), /Vehicle offline/);
   assert.equal(action(card, 'lock').disabled, false);
+  await openDetails(card);
+  assert.match(
+    text(detailsDialog(card).querySelector('[role="alert"]')),
+    /Vehicle offline/,
+  );
 });
 test('missing HA services disable commands even when their entities exist', async () => {
   const { card, calls } = await fixture({ services: {} });
@@ -615,7 +674,7 @@ test('quick actions are explicit and unavailable actions are omitted', async () 
     state: states('ex30', { 'button.volvo_ex30_honk': entity('unavailable') }),
   });
   assert.equal(action(card, 'flash'), null);
-  await expand(card);
+  await openDetails(card);
   assert.equal(action(card, 'honk'), null);
   action(card, 'flash').click();
   await settle(card);
@@ -626,7 +685,11 @@ test('quick actions are explicit and unavailable actions are omitted', async () 
       data: { entity_id: 'button.volvo_ex30_flash' },
     },
   ]);
-  action(card, 'disclosure').click();
+  assert.match(
+    text(detailsDialog(card).querySelector('[role="status"]')),
+    /Flash request sent/,
+  );
+  action(card, 'close-details').click();
   await settle(card);
   assert.equal(root(card).querySelector('.details'), null);
   assert.match(text(feedback(card)), /Flash request sent/);
@@ -636,18 +699,18 @@ test('empty optional rows hide secondary actions without hiding charging or open
   assert.ok(charge(card));
   assert.ok(openings(card));
   assert.equal(action(card, 'climate'), null);
-  await expand(card);
+  await openDetails(card);
   assert.equal(action(card, 'flash'), null);
-  assert.doesNotMatch(cardText(card), /Odometer/);
+  assert.doesNotMatch(dialogText(card), /Odometer/);
   assert.deepEqual(calls, []);
 });
 test('odometer is opt-in and appears only when its sensor is available', async () => {
   const { card } = await fixture({ config: { ...CONFIG, show: ['odometer'] } });
-  await expand(card);
-  assert.match(cardText(card), /Odometer/);
-  assert.match(cardText(card), /36057 km/);
+  await openDetails(card);
+  assert.match(dialogText(card), /Odometer/);
+  assert.match(dialogText(card), /36057 km/);
   await update(card, { 'sensor.volvo_ex30_odometer': entity('unavailable') });
-  assert.doesNotMatch(cardText(card), /Odometer/);
+  assert.doesNotMatch(dialogText(card), /Odometer/);
 });
 test('entity overrides route reads and confirmed commands to the configured car', async () => {
   const { card, calls } = await fixture({
@@ -685,14 +748,21 @@ test('entity overrides route reads and confirmed commands to the configured car'
 });
 test('location opens the existing tracker and is omitted when it is missing', async () => {
   const { card, calls } = await fixture();
-  await expand(card);
+  await openDetails(card);
   const seen = [];
-  card.addEventListener('hass-more-info', (event) =>
-    seen.push(event.detail.entityId),
-  );
+  card.addEventListener('hass-more-info', (event) => {
+    assert.equal(
+      detailsDialog(card).open,
+      false,
+      'the local modal closes before handing off to Home Assistant',
+    );
+    seen.push(event.detail.entityId);
+  });
   assert.ok(action(card, 'location'));
   action(card, 'location').click();
+  await settle(card);
   assert.deepEqual(seen, ['device_tracker.volvo_ex30_location']);
+  assert.equal(detailsDialog(card).querySelector('.details'), null);
   assert.deepEqual(calls, []);
   const withoutTracker = states();
   delete withoutTracker['device_tracker.volvo_ex30_location'];
@@ -700,7 +770,7 @@ test('location opens the existing tracker and is omitted when it is missing', as
     state: withoutTracker,
     config: { ...CONFIG, image: '/local/car.png' },
   });
-  await expand(missing.card);
+  await openDetails(missing.card);
   assert.equal(action(missing.card, 'location'), null);
 });
 test('configuration rejects invalid selectors and keeps legacy layouts valid', () => {
@@ -767,7 +837,7 @@ test('custom prefixes and opening/action overrides never fall back to another ca
     'binary_sensor.custom_front_door',
     'sensor.family_ev_battery',
   ]);
-  await expand(card);
+  await openDetails(card);
   action(card, 'flash').click();
   await settle(card);
   assert.deepEqual(calls, [

@@ -41,7 +41,7 @@ actions:
 | `image_entity` | Entity providing `entity_picture`; defaults to the car's location tracker. |
 | `image_size` | `small`, `medium` (default), or `large`. |
 | `image_height` | Explicit height, 32–260 px (overview default 140 px). Transparent margins are automatically excluded from framing so the car fills the area; the visible image is contained. Opaque or unreadable cross-origin images keep standard containment. Original image files are unchanged. |
-| `layout` | `banner` (overview, default), `compact` (smaller image), or `full` (details initially expanded). All share the same state interpretation and essential controls. |
+| `layout` | `banner` (overview, default), `compact` (smaller image), or `full` (legacy alias for overview). All open Details in a modal, preserving dashboard position. |
 | `show` | Optional detail sections: `charging`, `openings`, `actions`, `odometer`. Defaults to the first three. `[]` hides these extras. Core battery, charging and opening status remain visible. |
 | `entities` | Overrides for `lock`, `battery`, `range`, `odometer`, `charging_connection`, `charging_status`, `charging_power`, `charging_power_status`, `charging_type`, `charging_time`, `charging_target`. |
 | `openings` | Overrides for `door_front_left/right`, `door_rear_left/right`, `window_front_left/right`, `window_rear_left/right`, `bonnet`, `sunroof`, `tailgate`, `tank_lid`. |
@@ -67,7 +67,7 @@ The Volvo integration does not expose direct start/stop charging commands. Use t
 - **Unlock** asks for confirmation, bound to the same car and action. **Lock car** acts explicitly when the car is unlocked. The padlock icon shows the reported current state; the label describes the action. It does not switch to the requested state before confirmation from the car. Unknown/transitional states disable the control. Code-required locks use Home Assistant's native controls.
 - Commands are serialized. Lock feedback stays pending until the requested lock state is reported; an unrelated telemetry update cannot confirm it. Errors and timeouts remain visible. No retries are sent automatically.
 - **Climate** opens the supported precondition/stop controls. Other supported remote buttons live under Details. Buttons may legitimately be `unknown` before first use; missing/unavailable buttons are omitted.
-- Details contains readings, opening sensors, optional odometer, location more-info and reading timestamps. Timestamps describe changes received by Home Assistant, not proof of a live connection. No periodic refresh is forced by the card.
+- **Details** opens a modal with readings, opening sensors, optional odometer, location more-info and reading timestamps. The card does not expand or move the dashboard. Close it with the close button or Escape; focus returns to Details. Opening a native Home Assistant entity dialog dismisses this modal first. Timestamps describe changes received by Home Assistant, not proof of a live connection. No periodic refresh is forced by the card.
 
 Nothing is sent when the dashboard loads or a detail panel opens. Service acceptance does not prove a button's physical effect; the feedback says “request sent.”
 

@@ -583,6 +583,31 @@ export const cardStyles = css`
     font-weight: 650;
     letter-spacing: -0.02em;
   }
+  .details-dialog {
+    max-width: 480px;
+    padding: 0;
+    overflow: hidden;
+  }
+  .details-dialog[open] {
+    display: flex;
+    flex-direction: column;
+  }
+  .details-dialog .dialog-heading {
+    padding: 12px 18px;
+    margin: 0;
+    flex-shrink: 0;
+    border-bottom: 1px solid var(--divider-color);
+  }
+  .details-content {
+    padding: 0 18px 12px;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .details-dialog .details {
+    margin-top: 0;
+    border-top: 0;
+  }
   dialog .actions > * {
     flex: 1;
   }

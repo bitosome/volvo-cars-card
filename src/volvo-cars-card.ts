@@ -34,7 +34,7 @@ const percent = (value: number | undefined) =>
 export class VolvoCarsCard extends LitElement {
   @property({ attribute: false }) hass?: Hass;
   @state() private config?: VolvoCardConfig;
-  @state() private expanded = false;
+  @state() private detailsOpen = false;
   @state() private unlockEntity?: string;
   @state() private imageFailed = false;
   @state() private imageFrame?: ImageFrame & { source: string };
@@ -63,8 +63,9 @@ export class VolvoCarsCard extends LitElement {
     this.commands.reset();
     this.closeDialog('.unlock-dialog');
     this.closeDialog('.climate-dialog');
+    this.closeDialog('.details-dialog');
     this.config = config;
-    this.expanded = config.layout === 'full';
+    this.detailsOpen = false;
     this.unlockEntity = undefined;
     this.imageFailed = false;
     this.imageFrame = undefined;
@@ -78,6 +79,8 @@ export class VolvoCarsCard extends LitElement {
     this.commands.reset();
     this.closeDialog('.unlock-dialog');
     this.closeDialog('.climate-dialog');
+    this.closeDialog('.details-dialog');
+    this.detailsOpen = false;
     this.unlockEntity = undefined;
   }
   protected updated(changed: PropertyValues) {
@@ -99,7 +102,10 @@ export class VolvoCarsCard extends LitElement {
     return this.hass?.states[id];
   }
   private moreInfo(entityId?: string) {
-    if (entityId)
+    if (entityId) {
+      // Native dialogs occupy the top layer; dismiss ours before HA opens its own.
+      this.closeDialog('.details-dialog');
+      this.closeDialog('.climate-dialog');
       this.dispatchEvent(
         new CustomEvent('hass-more-info', {
           detail: { entityId },
@@ -107,6 +113,7 @@ export class VolvoCarsCard extends LitElement {
           composed: true,
         }),
       );
+    }
   }
   private frameImage(event: Event) {
     const image = event.currentTarget as HTMLImageElement;
@@ -610,22 +617,47 @@ export class VolvoCarsCard extends LitElement {
                     : nothing}<button
                     class="action secondary"
                     data-action="disclosure"
-                    aria-expanded=${this.expanded ? 'true' : 'false'}
-                    aria-controls="car-details"
-                    @click=${() => (this.expanded = !this.expanded)}
+                    aria-haspopup="dialog"
+                    aria-controls="car-details-dialog"
+                    @click=${() => {
+                      this.detailsOpen = true;
+                      this.openDialog('.details-dialog');
+                    }}
                   >
-                    ${icon(
-                      this.expanded ? 'mdi:chevron-up' : 'mdi:chevron-down',
-                    )}Details
+                    ${icon('mdi:information-outline')}Details
                   </button>
                 </div>
                 ${this.feedback()}
-                ${this.expanded ? this.details(car) : nothing}
               </section>
             </div>
           </div></ha-card
         >
       </div>
+      <dialog
+        id="car-details-dialog"
+        class="details-dialog"
+        aria-labelledby="details-title"
+        @close=${() => (this.detailsOpen = false)}
+        @cancel=${() => (this.detailsOpen = false)}
+      >
+        <div class="dialog-heading">
+          <h3 id="details-title">Details · ${car.name}</h3>
+          <button
+            class="icon-button"
+            data-action="close-details"
+            aria-label="Close car details"
+            autofocus
+            @click=${() => this.closeDialog('.details-dialog')}
+          >
+            ${icon('mdi:close')}
+          </button>
+        </div>
+        <div class="details-content">
+          ${this.detailsOpen
+            ? html`${this.feedback()}${this.details(car)}`
+            : nothing}
+        </div>
+      </dialog>
       <dialog
         class="unlock-dialog"
         aria-labelledby="unlock-title"
@@ -686,4 +718,4 @@ cardWindow.customCards.push({
   description: 'Battery, charging, doors, windows and controls for your Volvo.',
   preview: true,
 });
-console.info('VOLVO CARS CARD 0.6.2');
+console.info('VOLVO CARS CARD 0.6.3');
