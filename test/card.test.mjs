@@ -295,6 +295,11 @@ test('missing telemetry never claims the battery is empty or all openings are cl
 });
 test('unlocking requires confirmation and cancellation sends nothing', async () => {
   const { card, calls } = await fixture();
+  assert.equal(
+    action(card, 'lock').querySelector('ha-icon').icon,
+    'mdi:lock-outline',
+  );
+  assert.equal(text(action(card, 'lock')), 'Unlock');
   action(card, 'lock').click();
   await settle(card);
   assert.equal(root(card).querySelector('.unlock-dialog').open, true);
@@ -306,6 +311,10 @@ test('unlocking requires confirmation and cancellation sends nothing', async () 
   action(card, 'lock').click();
   await settle(card);
   const confirm = action(card, 'confirm-unlock');
+  assert.equal(
+    confirm.querySelector('ha-icon').icon,
+    'mdi:lock-outline',
+  );
   confirm.click();
   confirm.click();
   await settle(card);
@@ -318,6 +327,24 @@ test('unlocking requires confirmation and cancellation sends nothing', async () 
   ]);
   assert.match(text(feedback(card)), /Unlocking/);
   assert.equal(action(card, 'lock').disabled, true);
+  assert.equal(
+    action(card, 'lock').querySelector('ha-icon').icon,
+    'mdi:lock-outline',
+    'an unlock request does not change the reported locked state',
+  );
+  action(card, 'lock').click();
+  await settle(card);
+  assert.equal(
+    calls.length,
+    1,
+    'repeated presses during acknowledgement cannot send another command',
+  );
+  await update(card, { 'lock.volvo_ex30_lock': entity('unlocked') });
+  assert.equal(
+    action(card, 'lock').querySelector('ha-icon').icon,
+    'mdi:lock-open-variant-outline',
+  );
+  assert.equal(text(action(card, 'lock')), 'Lock car');
 });
 test('an unlock confirmation cannot become a lock when telemetry changes', async () => {
   const { card, calls } = await fixture();
@@ -358,6 +385,11 @@ test('locking an unlocked car sends one command and waits for the requested stat
   const { card, calls } = await fixture({
     state: states('ex30', { 'lock.volvo_ex30_lock': entity('unlocked') }),
   });
+  assert.equal(
+    action(card, 'lock').querySelector('ha-icon').icon,
+    'mdi:lock-open-variant-outline',
+  );
+  assert.equal(text(action(card, 'lock')), 'Lock car');
   action(card, 'lock').click();
   action(card, 'lock').click();
   await settle(card);
@@ -378,9 +410,17 @@ test('locking an unlocked car sends one command and waits for the requested stat
     'unchanged lock telemetry cannot acknowledge a command',
   );
   assert.match(text(feedback(card)), /Locking/);
+  assert.equal(
+    action(card, 'lock').querySelector('ha-icon').icon,
+    'mdi:lock-open-variant-outline',
+  );
   await update(card, { 'lock.volvo_ex30_lock': entity('locked') });
   assert.equal(action(card, 'lock').disabled, false);
   assert.match(text(feedback(card)), /Car locked/);
+  assert.equal(
+    action(card, 'lock').querySelector('ha-icon').icon,
+    'mdi:lock-outline',
+  );
 });
 test('unknown, unavailable, transitional and jammed locks never send commands', async () => {
   for (const state of [
@@ -394,6 +434,11 @@ test('unknown, unavailable, transitional and jammed locks never send commands', 
       state: states('ex30', { 'lock.volvo_ex30_lock': entity(state) }),
     });
     assert.equal(action(card, 'lock').disabled, true, state);
+    assert.equal(
+      action(card, 'lock').querySelector('ha-icon').icon,
+      'mdi:lock-alert-outline',
+      state,
+    );
     action(card, 'lock').click();
     await settle(card);
     assert.deepEqual(calls, []);
@@ -663,4 +708,17 @@ test('charging values retain their units and invalid battery or range values sta
     false,
   );
   assert.doesNotMatch(text(root(card).querySelector('.range-figure')), /-1/);
+  await update(card, {
+    'sensor.volvo_ex30_battery': entity('   '),
+    'sensor.volvo_ex30_distance_to_empty_battery': entity('   '),
+  });
+  assert.match(
+    action(card, 'identity').getAttribute('aria-label'),
+    /unavailable/,
+  );
+  assert.match(text(root(card).querySelector('.range-figure')), /—/);
+  assert.equal(
+    root(card).querySelector('[role="meter"]').hasAttribute('aria-valuenow'),
+    false,
+  );
 });

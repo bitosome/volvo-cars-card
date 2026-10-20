@@ -354,6 +354,12 @@ export class VolvoCarsCard extends LitElement {
     const lock = this.entity(car.entities.lock),
       knownLock = lock && ['locked', 'unlocked'].includes(lock.state);
     const locking = lock?.state === 'unlocked';
+    const lockIcon =
+      lock?.state === 'locked'
+        ? 'mdi:lock-outline'
+        : lock?.state === 'unlocked'
+          ? 'mdi:lock-open-variant-outline'
+          : 'mdi:lock-alert-outline';
     const command = this.commands.pending;
     const lockLabel =
       command?.entity === car.entities.lock
@@ -407,13 +413,7 @@ export class VolvoCarsCard extends LitElement {
                     aria-label=${`${this.statusLock(car)} — show lock details`}
                     @click=${() => this.moreInfo(car.entities.lock)}
                   >
-                    ${icon(
-                      lock?.state === 'locked'
-                        ? 'mdi:lock-outline'
-                        : lock?.state === 'unlocked'
-                          ? 'mdi:lock-open-variant-outline'
-                          : 'mdi:lock-alert-outline',
-                    )}<span>${this.statusLock(car)}</span>
+                    ${icon(lockIcon)}<span>${this.statusLock(car)}</span>
                   </button>
                 </header>
                 ${image && !this.imageFailed
@@ -559,13 +559,7 @@ export class VolvoCarsCard extends LitElement {
                     !this.canService('lock', locking ? 'lock' : 'unlock')}
                     @click=${() => this.lockAction(car)}
                   >
-                    ${icon(
-                      command?.entity === car.entities.lock
-                        ? 'mdi:progress-clock'
-                        : locking
-                          ? 'mdi:lock-outline'
-                          : 'mdi:lock-open-variant-outline',
-                    )}${lockLabel}</button
+                    ${icon(lockIcon)}${lockLabel}</button
                   >${climate
                     ? html`<button
                         class="action secondary"
@@ -623,7 +617,7 @@ export class VolvoCarsCard extends LitElement {
             lock?.state !== 'locked'}
             @click=${() => this.confirmUnlock()}
           >
-            ${icon('mdi:lock-open-variant-outline')}Unlock car
+            ${icon(lockIcon)}Unlock car
           </button>
         </div>
       </dialog>
@@ -654,4 +648,4 @@ cardWindow.customCards.push({
   description: 'Battery, charging, doors, windows and controls for your Volvo.',
   preview: true,
 });
-console.info('VOLVO CARS CARD 0.6.0');
+console.info('VOLVO CARS CARD 0.6.1');
