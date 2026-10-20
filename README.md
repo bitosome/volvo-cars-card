@@ -68,6 +68,7 @@ The Volvo integration does not expose direct start/stop charging commands. Use t
 - Commands are serialized. Lock feedback stays pending until the requested lock state is reported; an unrelated telemetry update cannot confirm it. Errors and timeouts remain visible. No retries are sent automatically.
 - **Climate** opens the supported precondition/stop controls. Other supported remote buttons live under Details. Buttons may legitimately be `unknown` before first use; missing/unavailable buttons are omitted.
 - **Details** opens a modal with readings, opening sensors, optional odometer, location more-info and reading timestamps. The card does not expand or move the dashboard. Close it with the close button or Escape; focus returns to Details. Opening a native Home Assistant entity dialog dismisses this modal first. Timestamps describe changes received by Home Assistant, not proof of a live connection. No periodic refresh is forced by the card.
+- Modals respect Home Assistant's safe-area insets (with browser safe-area fallback). Details keeps its heading outside a bounded scrolling body, including on small iOS viewports and in landscape.
 
 Nothing is sent when the dashboard loads or a detail panel opens. Service acceptance does not prove a button's physical effect; the feedback says “request sent.”
 

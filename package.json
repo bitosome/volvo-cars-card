@@ -1,6 +1,6 @@
 {
   "name": "volvo-cars-card",
-  "version": "0.6.3",
+  "version": "0.6.4",
   "description": "A calm, car-first Home Assistant card for the Volvo integration with Space Hub design.",
   "type": "module",
   "license": "MIT",

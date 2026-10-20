@@ -556,16 +556,50 @@ export const cardStyles = css`
     font-variant-numeric: tabular-nums;
   }
   dialog {
+    --dialog-safe-top: var(
+      --safe-area-inset-top,
+      env(safe-area-inset-top, 0px)
+    );
+    --dialog-safe-bottom: var(
+      --safe-area-inset-bottom,
+      env(safe-area-inset-bottom, 0px)
+    );
+    --dialog-safe-left: var(
+      --safe-area-inset-left,
+      env(safe-area-inset-left, 0px)
+    );
+    --dialog-safe-right: var(
+      --safe-area-inset-right,
+      env(safe-area-inset-right, 0px)
+    );
+    --dialog-available-height: calc(
+      100vh - 24px - var(--dialog-safe-top) - var(--dialog-safe-bottom)
+    );
+    position: fixed;
+    inset: calc(12px + var(--dialog-safe-top))
+      calc(12px + var(--dialog-safe-right))
+      calc(12px + var(--dialog-safe-bottom))
+      calc(12px + var(--dialog-safe-left));
+    margin: auto;
     background: var(--car-surface);
     color: var(--primary-text-color);
     border: 1px solid var(--divider-color);
     border-radius: 24px;
     padding: 22px;
-    width: calc(100vw - 24px);
+    width: calc(
+      100vw - 24px - var(--dialog-safe-left) - var(--dialog-safe-right)
+    );
     max-width: 420px;
-    max-height: calc(100dvh - 32px);
+    max-height: var(--dialog-available-height);
     overflow-y: auto;
     box-shadow: 0 24px 90px #0005;
+  }
+  @supports (height: 100dvh) {
+    dialog {
+      --dialog-available-height: calc(
+        100dvh - 24px - var(--dialog-safe-top) - var(--dialog-safe-bottom)
+      );
+    }
   }
   dialog::backdrop {
     background: #070a14a3;
@@ -579,18 +613,22 @@ export const cardStyles = css`
     margin-bottom: 10px;
   }
   .dialog-heading h3 {
+    min-width: 0;
+    overflow-wrap: anywhere;
     font-size: 20px;
     font-weight: 650;
     letter-spacing: -0.02em;
   }
   .details-dialog {
     max-width: 480px;
+    /* A definite height gives WebKit a bounded inner scrollport. */
+    height: min(760px, var(--dialog-available-height));
     padding: 0;
     overflow: hidden;
   }
   .details-dialog[open] {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
   }
   .details-dialog .dialog-heading {
     padding: 12px 18px;
@@ -601,7 +639,9 @@ export const cardStyles = css`
   .details-content {
     padding: 0 18px 12px;
     min-height: 0;
+    min-width: 0;
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
   }
   .details-dialog .details {
