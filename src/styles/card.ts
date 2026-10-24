@@ -325,28 +325,10 @@ export const cardStyles = css`
   .openings.needs-attention {
     flex-basis: 100%;
   }
-  .opening-summary {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 12px;
-    color: var(--car-muted);
-    line-height: 1.4;
-  }
-  .warning .opening-summary {
-    color: inherit;
-  }
-  .opening-summary ha-icon {
-    width: 18px;
-    height: 18px;
-    --mdc-icon-size: 18px;
-    flex-basis: 18px;
-  }
   .opening-pills {
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
-    margin-top: 8px;
   }
   .opening-pill {
     display: flex;
@@ -370,11 +352,9 @@ export const cardStyles = css`
     --mdc-icon-size: 16px;
     flex-basis: 16px;
   }
-  .coverage {
-    display: block;
-    font-size: 11px;
+  .opening-pill.neutral {
     color: var(--car-muted);
-    margin-top: 6px;
+    background: color-mix(in srgb, var(--primary-text-color) 6%, transparent);
   }
   .controls,
   .actions {

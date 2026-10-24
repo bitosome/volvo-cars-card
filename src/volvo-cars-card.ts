@@ -563,36 +563,28 @@ export class VolvoCarsCard extends LitElement {
                       ? 'needs-attention'
                       : ''}"
                   >
-                    <div class="opening-summary">
-                      ${icon(
-                        openings.open.length
-                          ? 'mdi:car-door'
-                          : openings.unknown.length
-                            ? 'mdi:help-circle-outline'
-                            : 'mdi:shield-check-outline',
-                      )}<span>${openings.label}</span>
+                    <div class="opening-pills">
+                      ${openings.open.map(
+                        (o) => html`<button
+                          class="opening-pill warning"
+                          data-opening=${o.key}
+                          aria-label=${`${o.label} open`}
+                          @click=${() => this.moreInfo(o.entity)}
+                        >${icon(o.icon)}${o.label}</button>`,
+                      )}
+                      ${openings.unknown.length
+                        ? html`<span class="opening-pill neutral" title=${openings.detail}>
+                            ${icon('mdi:help-circle-outline')}
+                            ${!openings.open.length && openings.label === 'Openings unavailable'
+                              ? openings.label
+                              : `${openings.unknown.length} ${openings.unknown.length === 1 ? 'sensor unavailable' : 'sensors unavailable'}`}
+                          </span>`
+                        : !openings.open.length
+                          ? html`<span class="opening-pill neutral" title=${openings.detail}>
+                              ${icon('mdi:shield-check-outline')}${openings.label}
+                            </span>`
+                          : nothing}
                     </div>
-                    ${openings.open.length
-                      ? html`<div class="opening-pills">
-                          ${openings.open.map(
-                            (o) =>
-                              html`<button
-                                class="opening-pill"
-                                data-opening=${o.key}
-                                @click=${() => this.moreInfo(o.entity)}
-                              >
-                                ${icon(o.icon)}${o.label}
-                              </button>`,
-                          )}
-                        </div>`
-                      : nothing}${openings.unknown.length
-                      ? html`<span class="coverage"
-                          >${openings.unknown.length}
-                          ${openings.unknown.length === 1
-                            ? 'sensor unavailable'
-                            : 'sensors unavailable'}</span
-                        >`
-                      : nothing}
                   </div>
                 </div>
                 <div class="controls">
@@ -718,4 +710,4 @@ cardWindow.customCards.push({
   description: 'Battery, charging, doors, windows and controls for your Volvo.',
   preview: true,
 });
-console.info('VOLVO CARS CARD 0.6.4');
+console.info('VOLVO CARS CARD 0.6.5');
