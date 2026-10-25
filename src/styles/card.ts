@@ -122,26 +122,6 @@ export const cardStyles = css`
     line-height: 1.3;
     overflow-wrap: anywhere;
   }
-  .lock-state {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    flex-shrink: 0;
-    border: 0;
-    border-radius: 999px;
-    min-height: 44px;
-    padding: 6px 9px;
-    background: color-mix(in srgb, var(--primary-text-color) 5%, transparent);
-    color: var(--car-muted);
-    font-size: 11px;
-    font-weight: 600;
-  }
-  .lock-state ha-icon {
-    width: 16px;
-    height: 16px;
-    --mdc-icon-size: 16px;
-    flex-basis: 16px;
-  }
   .vehicle-image {
     height: var(--image-height, 140px);
     margin: 0 -4px;
@@ -668,10 +648,6 @@ export const cardStyles = css`
     }
     .identity h2 {
       font-size: 16px;
-    }
-    .lock-state {
-      padding: 5px 7px;
-      font-size: 10px;
     }
     .vehicle-image {
       max-height: 130px;

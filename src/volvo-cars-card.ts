@@ -402,7 +402,7 @@ export class VolvoCarsCard extends LitElement {
           ? 'Unlocking…'
           : 'Locking…'
         : !knownLock
-          ? 'Lock unavailable'
+          ? this.statusLock(car)
           : locking
             ? 'Lock car'
             : 'Unlock';
@@ -435,15 +435,6 @@ export class VolvoCarsCard extends LitElement {
               >
                 <header class="identity">
                   <h2>${car.name}</h2>
-                  <button
-                    class="lock-state ${lock?.state === 'unlocked'
-                      ? 'warning'
-                      : ''}"
-                    aria-label=${`${this.statusLock(car)} — show lock details`}
-                    @click=${() => this.moreInfo(car.entities.lock)}
-                  >
-                    ${icon(lockIcon)}<span>${this.statusLock(car)}</span>
-                  </button>
                 </header>
                 ${image && !this.imageFailed
                   ? html`<div
@@ -591,6 +582,7 @@ export class VolvoCarsCard extends LitElement {
                   <button
                     class="action ${locking ? 'primary' : 'secondary'}"
                     data-action="lock"
+                    title=${`${this.statusLock(car)} — ${lockLabel}`}
                     ?disabled=${!knownLock ||
                     this.busy ||
                     !this.canService('lock', locking ? 'lock' : 'unlock')}
@@ -710,4 +702,4 @@ cardWindow.customCards.push({
   description: 'Battery, charging, doors, windows and controls for your Volvo.',
   preview: true,
 });
-console.info('VOLVO CARS CARD 0.6.5');
+console.info('VOLVO CARS CARD 0.6.6');
