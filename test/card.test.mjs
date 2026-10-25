@@ -121,7 +121,7 @@ const cardText = (card) => text(root(card).querySelector('ha-card'));
 const detailsDialog = (card) => root(card).querySelector('.details-dialog');
 const dialogText = (card) => text(detailsDialog(card));
 const action = (card, name) =>
-  root(card).querySelector(`[data-action="${name}"]`);
+  name.startsWith("close-") ? root(card).querySelector("dialog .family-icon-button[title=Close]") : root(card).querySelector(`[data-action="${name}"]`);
 const charge = (card) => root(card).querySelector('.charging-status');
 const openings = (card) => root(card).querySelector('.openings');
 const feedback = (card) =>
@@ -131,7 +131,7 @@ async function update(card, patch) {
   await settle(card);
 }
 async function openDetails(card) {
-  if (!detailsDialog(card).open) {
+  if (!detailsDialog(card)?.open) {
     action(card, 'disclosure').click();
     await settle(card);
   }
@@ -169,7 +169,7 @@ for (const layout of ['banner', 'compact', 'full']) {
     assert.doesNotMatch(cardText(card), /\[object /);
     const overview = root(card).querySelector('ha-card');
     const initialText = cardText(card);
-    assert.equal(detailsDialog(card).open, false);
+    assert.equal(detailsDialog(card), null);
     assert.equal(
       action(card, 'disclosure').getAttribute('aria-haspopup'),
       'dialog',
@@ -183,8 +183,8 @@ for (const layout of ['banner', 'compact', 'full']) {
       assert.equal(cardText(card), initialText);
       action(card, 'close-details').click();
       await settle(card);
-      assert.equal(detailsDialog(card).open, false);
-      assert.equal(detailsDialog(card).querySelector('.details'), null);
+      assert.equal(detailsDialog(card), null);
+      assert.equal(root(card).querySelector('dialog .details'), null);
     }
     assert.deepEqual(calls, []);
   });
@@ -199,10 +199,10 @@ test('native details cancellation clears its contents and allows reopening', asy
   }
   await settle(card);
   assert.equal(dialog.open, false);
-  assert.equal(dialog.querySelector('.details'), null);
+  assert.equal(detailsDialog(card), null);
   await openDetails(card);
-  assert.equal(dialog.open, true);
-  assert.ok(dialog.querySelector('.details'));
+  assert.equal(detailsDialog(card).open, true);
+  assert.ok(detailsDialog(card).querySelector('.details'));
   assert.deepEqual(calls, []);
 });
 test('details closes on car changes and disconnect, including a pending open', async () => {
@@ -212,15 +212,15 @@ test('details closes on car changes and disconnect, including a pending open', a
   await openDetails(card);
   card.setConfig({ ...CONFIG, car: 'xc40' });
   await settle(card);
-  assert.equal(detailsDialog(card).open, false);
-  assert.equal(detailsDialog(card).querySelector('.details'), null);
+  assert.equal(detailsDialog(card), null);
+  assert.equal(root(card).querySelector('dialog .details'), null);
 
   action(card, 'disclosure').click();
   card.setConfig(CONFIG);
   await settle(card);
   assert.equal(
-    detailsDialog(card).open,
-    false,
+    detailsDialog(card),
+    null,
     'a pending open belongs to the old card configuration',
   );
   await openDetails(card);
@@ -457,7 +457,7 @@ test('unlocking requires confirmation and cancellation sends nothing', async () 
   assert.deepEqual(calls, []);
   action(card, 'cancel-unlock').click();
   await settle(card);
-  assert.equal(root(card).querySelector('.unlock-dialog').open, false);
+  assert.equal(root(card).querySelector('.unlock-dialog'), null);
   assert.deepEqual(calls, []);
   action(card, 'lock').click();
   await settle(card);
@@ -516,7 +516,7 @@ test('changing cars invalidates an open confirmation, including the old button h
   oldConfirmation.click();
   await settle(card);
   assert.deepEqual(calls, []);
-  assert.equal(root(card).querySelector('.unlock-dialog').open, false);
+  assert.equal(root(card).querySelector('.unlock-dialog'), null);
   action(card, 'lock').click();
   await settle(card);
   action(card, 'confirm-unlock').click();
@@ -606,7 +606,7 @@ test('code-protected locks open HA controls instead of bypassing the code', asyn
   await settle(card);
   assert.deepEqual(seen, ['lock.volvo_ex30_lock']);
   assert.deepEqual(calls, []);
-  assert.equal(root(card).querySelector('.unlock-dialog').open, false);
+  assert.equal(root(card).querySelector('.unlock-dialog'), null);
 });
 test('service failures stay visible and accessible with details closed', async () => {
   const { card } = await fixture({
@@ -759,7 +759,7 @@ test('location opens the existing tracker and is omitted when it is missing', as
   action(card, 'location').click();
   await settle(card);
   assert.deepEqual(seen, ['device_tracker.volvo_ex30_location']);
-  assert.equal(detailsDialog(card).querySelector('.details'), null);
+  assert.equal(root(card).querySelector('dialog .details'), null);
   assert.deepEqual(calls, []);
   const withoutTracker = states();
   delete withoutTracker['device_tracker.volvo_ex30_location'];

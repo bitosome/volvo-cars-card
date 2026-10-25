@@ -93,12 +93,10 @@ Production uses HA's `ha-icon`. Preview icon paths are from [Material Design Ico
 
 ## License
 
-MIT; vendored shared files retain their source provenance and notices.
+MIT; bundled shared dependencies retain their source provenance and notices.
 
 ## Shared design
 
-System controls use the Space Hub card-family primitives vendored in `src/shared/`.
-`DESIGN_PROVENANCE.json` pins their canonical source and hashes; update them using
-Space Hub's `scripts/sync-card-design.mjs`, never by hand. Dialogs share safe-area
-geometry, a persistent MDI X header, native modality and focus restoration.
-Vehicle commands and their acknowledgement model stay separate from presentation.
+The build bundles [`@bitosome/ha-card-ui`](https://github.com/bitosome/ha-card-ui), the versioned Space Hub design and behavior library. Its tokens, under-tile activation glows, MDI controls and shared native dialog controller are included in this card's JavaScript. Home Assistant does not need a separate library resource or another card installed. The release URL and integrity are pinned by `package-lock.json`; see [provenance](src/shared/PROVENANCE.md).
+
+Details, Climate and Unlock use the shared shell. X, Escape and deliberate backdrop presses close the flow and restore its opener. Home Assistant more-info receives a clean top-layer handoff. Vehicle commands and confirmations stay bound to the configured vehicle; closing a view does not cancel or duplicate a dispatched command.

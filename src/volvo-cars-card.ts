@@ -5,12 +5,14 @@ import {
   familyStyles,
   headerStyles,
   dialogStyles,
-  showFamilyDialog,
-  closeFamilyDialog,
-  disposeFamilyDialog,
+  FamilyFlowController,
+  renderFamilyDialog,
+  componentStyles,
+  notice,
+  showEntityMoreInfo,
   UI_ICONS,
 } from './shared/card-primitives';
-import { buildGlow } from './shared/glow';
+import { buildGlow, glowStyles } from './shared/glow';
 import { cardStyles } from './styles/card';
 import {
   available,
@@ -43,10 +45,12 @@ const percent = (value: number | undefined) =>
 export class VolvoCarsCard extends LitElement {
   @property({ attribute: false }) hass?: Hass;
   @state() private config?: VolvoCardConfig;
-  @state() private detailsOpen = false;
   @state() private unlockEntity?: string;
   @state() private imageFailed = false;
   @state() private imageFrame?: ImageFrame & { source: string };
+  private flow = new FamilyFlowController<'details' | 'climate' | 'unlock'>(this, {
+    onChange: (route) => { if (route !== 'unlock') this.unlockEntity = undefined; },
+  });
   private unframedImage?: string;
   private lastImage?: string;
   private commands = new VehicleCommands(
@@ -60,6 +64,8 @@ export class VolvoCarsCard extends LitElement {
     familyStyles,
     headerStyles,
     dialogStyles,
+    componentStyles,
+    glowStyles,
   ];
   static getConfigElement() {
     return document.createElement('volvo-cars-card-editor');
@@ -78,7 +84,6 @@ export class VolvoCarsCard extends LitElement {
     this.commands.reset();
     this.disposeDialogs();
     this.config = config;
-    this.detailsOpen = false;
     this.unlockEntity = undefined;
     this.imageFailed = false;
     this.imageFrame = undefined;
@@ -91,7 +96,6 @@ export class VolvoCarsCard extends LitElement {
     super.disconnectedCallback();
     this.commands.reset();
     this.disposeDialogs();
-    this.detailsOpen = false;
     this.unlockEntity = undefined;
   }
   protected updated(changed: PropertyValues) {
@@ -113,22 +117,7 @@ export class VolvoCarsCard extends LitElement {
     return this.hass?.states[id];
   }
   private moreInfo(entityId?: string) {
-    if (entityId) {
-      // Native dialogs occupy the top layer; dismiss ours before HA opens its own.
-      disposeFamilyDialog(
-        this.renderRoot.querySelector<HTMLDialogElement>('.details-dialog'),
-      );
-      disposeFamilyDialog(
-        this.renderRoot.querySelector<HTMLDialogElement>('.climate-dialog'),
-      );
-      this.dispatchEvent(
-        new CustomEvent('hass-more-info', {
-          detail: { entityId },
-          bubbles: true,
-          composed: true,
-        }),
-      );
-    }
+    if (entityId) this.flow.handoff(() => showEntityMoreInfo(this, entityId));
   }
   private frameImage(event: Event) {
     const image = event.currentTarget as HTMLImageElement;
@@ -152,30 +141,11 @@ export class VolvoCarsCard extends LitElement {
       this.imageFailed = true;
     }
   }
-  private closeDialog(selector: string) {
-    closeFamilyDialog(
-      this.renderRoot?.querySelector<HTMLDialogElement>(selector),
-    );
-  }
-  private disposeDialogs() {
-    this.renderRoot
-      ?.querySelectorAll<HTMLDialogElement>('dialog')
-      .forEach(disposeFamilyDialog);
-  }
-  private async openDialog(selector: string, opener?: HTMLElement) {
-    const config = this.config;
-    await this.updateComplete;
-    if (!this.isConnected || this.config !== config) return;
-    const dialog = this.renderRoot.querySelector<HTMLDialogElement>(selector);
-    if (dialog && !dialog.open)
-      showFamilyDialog(dialog, {
-        opener,
-        initialFocus:
-          dialog.querySelector<HTMLElement>('[autofocus]') ??
-          dialog.querySelector<HTMLElement>('.family-icon-button'),
-        // All settings here apply immediately; there is no unsaved modal draft.
-        onBackdrop: () => this.closeDialog(selector),
-      });
+  private closeDialog(_selector: string) { this.flow.close(); }
+  private disposeDialogs() { this.flow.forceClose(false); }
+  private openDialog(selector: string, opener?: HTMLElement) {
+    const route = selector.replace('.', '').replace('-dialog', '') as 'details' | 'climate' | 'unlock';
+    this.flow.open(route, opener);
   }
   private canService(domain: string, service: string) {
     return (
@@ -214,28 +184,11 @@ export class VolvoCarsCard extends LitElement {
   }
   private feedback() {
     const f = this.commands.feedback;
-    return f
-      ? html`<div
-          class="feedback ${f.kind}"
-          role=${f.kind === 'error' ? 'alert' : 'status'}
-        >
-          ${icon(
-            f.kind === 'error'
-              ? 'mdi:alert-circle-outline'
-              : 'mdi:information-outline',
-          )}<span>${f.message}</span>${
-            f.kind !== 'pending'
-              ? html`<button
-                  class="icon-button"
-                  aria-label="Dismiss message"
-                  @click=${() => this.commands.clearFeedback()}
-                >
-                  ${icon(UI_ICONS.close)}
-                </button>`
-              : nothing
-          }
-        </div>`
-      : nothing;
+    return f ? notice({
+      message: f.message,
+      tone: f.kind === 'error' ? 'error' : f.kind === 'success' ? 'success' : 'neutral',
+      action: f.kind !== 'pending' ? { label: 'Dismiss', onClick: () => this.commands.clearFeedback() } : undefined,
+    }) : nothing;
   }
   private statusLock(car: ResolvedCar) {
     const state = this.entity(car.entities.lock)?.state;
@@ -680,7 +633,6 @@ export class VolvoCarsCard extends LitElement {
                     aria-haspopup="dialog"
                     aria-controls="car-details-dialog"
                     @click=${(event: Event) => {
-                      this.detailsOpen = true;
                       this.openDialog(
                         '.details-dialog',
                         event.currentTarget as HTMLElement,
@@ -696,102 +648,21 @@ export class VolvoCarsCard extends LitElement {
           </div></ha-card
         >
       </div>
-      <dialog
-        id="car-details-dialog"
-        class="details-dialog family-dialog long"
-        aria-labelledby="details-title"
-        @close=${() => (this.detailsOpen = false)}
-        @cancel=${() => (this.detailsOpen = false)}
-      >
-        <div class="family-dialog-header">
-          <h3 id="details-title">Details · ${car.name}</h3>
-          <button
-            class="family-icon-button"
-            title="Close"
-            data-action="close-details"
-            aria-label="Close car details"
-            autofocus
-            @click=${() => this.closeDialog('.details-dialog')}
-          >
-            ${icon(UI_ICONS.close)}
-          </button>
-        </div>
-        <div class="details-content family-dialog-body">
-          ${
-            this.detailsOpen
-              ? html`${this.feedback()}${this.details(car)}`
-              : nothing
-          }
-        </div>
-      </dialog>
-      <dialog
-        class="unlock-dialog family-dialog"
-        aria-labelledby="unlock-title"
-        @close=${() => (this.unlockEntity = undefined)}
-        @cancel=${() => (this.unlockEntity = undefined)}
-      >
-        <div class="family-dialog-header">
-          <h3 id="unlock-title">Unlock ${car.name}?</h3>
-          <button
-            type="button"
-            class="family-icon-button"
-            data-action="close-unlock"
-            aria-label="Close unlock confirmation"
-            title="Close"
-            @click=${() => this.closeDialog('.unlock-dialog')}
-          >
-            ${icon(UI_ICONS.close)}
-          </button>
-        </div>
-        <div class="family-dialog-body">
-          <p>This unlocks the car remotely.</p>
-        </div>
-        <div class="actions family-dialog-footer">
-          <button
-            class="action family-action secondary"
-            data-action="cancel-unlock"
-            autofocus
-            @click=${() => {
-              this.unlockEntity = undefined;
-              this.closeDialog('.unlock-dialog');
-            }}
-          >
-            Cancel</button
-          ><button
-            class="action family-action primary"
-            data-action="confirm-unlock"
-            ?disabled=${
-              this.busy ||
-              this.unlockEntity !== car.entities.lock ||
-              lock?.state !== 'locked'
-            }
-            @click=${() => this.confirmUnlock()}
-          >
-            ${icon(lockIcon)}Unlock car
-          </button>
-        </div>
-      </dialog>
-      <dialog
-        class="climate-dialog family-dialog"
-        aria-labelledby="climate-title"
-      >
-        <div class="family-dialog-header">
-          <h3 id="climate-title">Climate · ${car.name}</h3>
-          <button
-            class="family-icon-button"
-            title="Close"
-            aria-label="Close climate controls"
-            @click=${() => this.closeDialog('.climate-dialog')}
-          >
-            ${icon(UI_ICONS.close)}
-          </button>
-        </div>
-        <div class="family-dialog-body">
-          <p>Precondition the cabin before you leave.</p>
-          <div class="actions">${this.actionButtons(car, true)}</div>
-          ${this.feedback()}
-        </div>
-      </dialog>`;
+      ${renderFamilyDialog(this.flow, {
+        title: this.flow.current === 'unlock' ? `Unlock ${car.name}?` : `${this.flow.current === 'climate' ? 'Climate' : 'Details'} · ${car.name}`,
+        className: `${this.flow.current}-dialog`,
+        id: this.flow.current === 'details' ? 'car-details-dialog' : undefined,
+        long: this.flow.current === 'details',
+        bodyClass: this.flow.current === 'details' ? 'details-content' : undefined,
+        content: this.flow.current === 'details' ? html`${this.feedback()}${this.details(car)}`
+          : this.flow.current === 'climate' ? html`<p>Precondition the cabin before you leave.</p><div class="actions">${this.actionButtons(car, true)}</div>${this.feedback()}`
+          : html`<p>This unlocks the car remotely.</p>`,
+        footer: this.flow.current === 'unlock' ? html`
+          <button class="action family-action secondary" data-action="cancel-unlock" data-family-initial-focus @click=${() => this.flow.close()}>Cancel</button>
+          <button class="action family-action primary" data-action="confirm-unlock"
+            ?disabled=${this.busy || this.unlockEntity !== car.entities.lock || lock?.state !== 'locked'}
+            @click=${() => this.confirmUnlock()}>${icon(lockIcon)}Unlock car</button>` : undefined,
+      })}`;
   }
 }
 const cardWindow = window as typeof window & {
@@ -804,4 +675,4 @@ cardWindow.customCards.push({
   description: 'Battery, charging, doors, windows and controls for your Volvo.',
   preview: true,
 });
-console.info('VOLVO CARS CARD 0.6.7');
+console.info('VOLVO CARS CARD 0.7.0');

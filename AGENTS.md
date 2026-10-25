@@ -1,9 +1,9 @@
 # Volvo Cars Card
 
 This repository owns the standalone Lovelace card for the official Home Assistant Volvo
-integration. Use Space Hub Card as the canonical design reference; `src/shared/` is
-vendored from it and must retain provenance — synchronize from the canonical source
-rather than editing the copies by hand or creating a competing design system.
+integration. Use Space Hub Card as the canonical design reference; the versioned `@bitosome/ha-card-ui` package owns shared tokens, glows, components
+and modal behavior. `src/shared/` contains compatibility exports. Update the package
+and rebuild rather than creating local copies or competing behavior.
 
 The card is a view and a set of explicit actions. It must never guess an entity: derive
 the Volvo ids from the configured car prefix, honour per-slot overrides, and show a
