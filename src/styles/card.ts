@@ -109,18 +109,8 @@ export const cardStyles = css`
   p {
     margin: 0;
   }
-  .identity {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 10px;
-  }
-  .identity h2 {
-    font-size: 18px;
-    font-weight: 650;
-    letter-spacing: -0.02em;
-    line-height: 1.3;
-    overflow-wrap: anywhere;
+  .identity.family-header {
+    padding: 0;
   }
   .vehicle-image {
     height: var(--image-height, 140px);
@@ -426,7 +416,7 @@ export const cardStyles = css`
   }
   .details p,
   dialog p {
-    font-size: 12px;
+    font-size: 13px;
     color: var(--car-muted);
     line-height: 1.5;
   }
@@ -515,94 +505,14 @@ export const cardStyles = css`
   .update-details time {
     font-variant-numeric: tabular-nums;
   }
-  dialog {
-    --dialog-safe-top: var(
-      --safe-area-inset-top,
-      env(safe-area-inset-top, 0px)
-    );
-    --dialog-safe-bottom: var(
-      --safe-area-inset-bottom,
-      env(safe-area-inset-bottom, 0px)
-    );
-    --dialog-safe-left: var(
-      --safe-area-inset-left,
-      env(safe-area-inset-left, 0px)
-    );
-    --dialog-safe-right: var(
-      --safe-area-inset-right,
-      env(safe-area-inset-right, 0px)
-    );
-    --dialog-available-height: calc(
-      100vh - 24px - var(--dialog-safe-top) - var(--dialog-safe-bottom)
-    );
-    position: fixed;
-    inset: calc(12px + var(--dialog-safe-top))
-      calc(12px + var(--dialog-safe-right))
-      calc(12px + var(--dialog-safe-bottom))
-      calc(12px + var(--dialog-safe-left));
-    margin: auto;
-    background: var(--car-surface);
-    color: var(--primary-text-color);
-    border: 1px solid var(--divider-color);
-    border-radius: 24px;
-    padding: 22px;
-    width: calc(
-      100vw - 24px - var(--dialog-safe-left) - var(--dialog-safe-right)
-    );
-    max-width: 420px;
-    max-height: var(--dialog-available-height);
-    overflow-y: auto;
-    box-shadow: 0 24px 90px #0005;
-  }
-  @supports (height: 100dvh) {
-    dialog {
-      --dialog-available-height: calc(
-        100dvh - 24px - var(--dialog-safe-top) - var(--dialog-safe-bottom)
-      );
-    }
-  }
-  dialog::backdrop {
-    background: #070a14a3;
-    backdrop-filter: blur(7px);
-  }
-  .dialog-heading {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    margin-bottom: 10px;
-  }
-  .dialog-heading h3 {
-    min-width: 0;
-    overflow-wrap: anywhere;
-    font-size: 20px;
-    font-weight: 650;
-    letter-spacing: -0.02em;
-  }
-  .details-dialog {
-    max-width: 480px;
-    /* A definite height gives WebKit a bounded inner scrollport. */
-    height: min(760px, var(--dialog-available-height));
-    padding: 0;
-    overflow: hidden;
-  }
-  .details-dialog[open] {
-    display: grid;
-    grid-template-rows: auto minmax(0, 1fr);
-  }
-  .details-dialog .dialog-heading {
-    padding: 12px 18px;
-    margin: 0;
-    flex-shrink: 0;
-    border-bottom: 1px solid var(--divider-color);
-  }
   .details-content {
-    padding: 0 18px 12px;
-    min-height: 0;
-    min-width: 0;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-    overscroll-behavior: contain;
+    padding-top: 0;
+  }
+  .family-dialog-body > p:first-child {
+    margin-top: 0;
+  }
+  .family-dialog-body > p:last-child {
+    margin-bottom: 0;
   }
   .details-dialog .details {
     margin-top: 0;
@@ -645,9 +555,6 @@ export const cardStyles = css`
   @container (max-width:360px) {
     .vehicle {
       padding: 12px;
-    }
-    .identity h2 {
-      font-size: 16px;
     }
     .vehicle-image {
       max-height: 130px;

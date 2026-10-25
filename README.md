@@ -94,3 +94,11 @@ Production uses HA's `ha-icon`. Preview icon paths are from [Material Design Ico
 ## License
 
 MIT; vendored shared files retain their source provenance and notices.
+
+## Shared design
+
+System controls use the Space Hub card-family primitives vendored in `src/shared/`.
+`DESIGN_PROVENANCE.json` pins their canonical source and hashes; update them using
+Space Hub's `scripts/sync-card-design.mjs`, never by hand. Dialogs share safe-area
+geometry, a persistent MDI X header, native modality and focus restoration.
+Vehicle commands and their acknowledgement model stay separate from presentation.

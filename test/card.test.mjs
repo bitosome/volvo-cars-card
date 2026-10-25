@@ -462,10 +462,7 @@ test('unlocking requires confirmation and cancellation sends nothing', async () 
   action(card, 'lock').click();
   await settle(card);
   const confirm = action(card, 'confirm-unlock');
-  assert.equal(
-    confirm.querySelector('ha-icon').icon,
-    'mdi:lock-outline',
-  );
+  assert.equal(confirm.querySelector('ha-icon').icon, 'mdi:lock-outline');
   confirm.click();
   confirm.click();
   await settle(card);
@@ -888,4 +885,47 @@ test('charging values retain their units and invalid battery or range values sta
     root(card).querySelector('[role="meter"]').hasAttribute('aria-valuenow'),
     false,
   );
+});
+
+test('unlock confirmation uses the shared X without issuing a command and returns focus', async () => {
+  const { card, calls } = await fixture();
+  const opener = action(card, 'lock');
+  opener.click();
+  await settle(card);
+  const dialog = root(card).querySelector('.unlock-dialog');
+  const close = action(card, 'close-unlock');
+  assert.equal(dialog.classList.contains('family-dialog'), true);
+  assert.equal(close.querySelector('ha-icon').icon, 'mdi:close');
+  assert.equal(close.title, 'Close');
+  assert.equal(root(card).activeElement, action(card, 'cancel-unlock'));
+  close.click();
+  await settle(card);
+  assert.equal(dialog.open, false);
+  assert.equal(root(card).activeElement, opener);
+  assert.equal(calls.length, 0);
+});
+
+test('details backdrop dismisses only a gesture that starts and ends outside', async () => {
+  const { card, calls } = await fixture();
+  const opener = action(card, 'disclosure');
+  opener.click();
+  await settle(card);
+  const dialog = detailsDialog(card);
+  dialog.getBoundingClientRect = () => ({
+    left: 10,
+    right: 300,
+    top: 10,
+    bottom: 400,
+  });
+  const pointer = (type, x, y) =>
+    new browser.PointerEvent(type, { clientX: x, clientY: y, bubbles: true });
+  dialog.dispatchEvent(pointer('pointerdown', 40, 40));
+  dialog.dispatchEvent(pointer('pointerup', 1, 1));
+  assert.equal(dialog.open, true);
+  dialog.dispatchEvent(pointer('pointerdown', 1, 1));
+  dialog.dispatchEvent(pointer('pointerup', 1, 1));
+  await settle(card);
+  assert.equal(dialog.open, false);
+  assert.equal(root(card).activeElement, opener);
+  assert.equal(calls.length, 0);
 });

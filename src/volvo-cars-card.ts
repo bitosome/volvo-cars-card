@@ -1,6 +1,15 @@
 import { LitElement, html, nothing, type PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { designTokens } from './shared/design-tokens';
+import {
+  familyStyles,
+  headerStyles,
+  dialogStyles,
+  showFamilyDialog,
+  closeFamilyDialog,
+  disposeFamilyDialog,
+  UI_ICONS,
+} from './shared/card-primitives';
 import { buildGlow } from './shared/glow';
 import { cardStyles } from './styles/card';
 import {
@@ -45,7 +54,13 @@ export class VolvoCarsCard extends LitElement {
     () => this.requestUpdate(),
     { openMoreInfo: (id) => this.moreInfo(id) },
   );
-  static styles = [designTokens, cardStyles];
+  static styles = [
+    designTokens,
+    cardStyles,
+    familyStyles,
+    headerStyles,
+    dialogStyles,
+  ];
   static getConfigElement() {
     return document.createElement('volvo-cars-card-editor');
   }
@@ -61,9 +76,7 @@ export class VolvoCarsCard extends LitElement {
   setConfig(raw: VolvoCardConfig) {
     const config = validateConfig(raw);
     this.commands.reset();
-    this.closeDialog('.unlock-dialog');
-    this.closeDialog('.climate-dialog');
-    this.closeDialog('.details-dialog');
+    this.disposeDialogs();
     this.config = config;
     this.detailsOpen = false;
     this.unlockEntity = undefined;
@@ -77,9 +90,7 @@ export class VolvoCarsCard extends LitElement {
   disconnectedCallback() {
     super.disconnectedCallback();
     this.commands.reset();
-    this.closeDialog('.unlock-dialog');
-    this.closeDialog('.climate-dialog');
-    this.closeDialog('.details-dialog');
+    this.disposeDialogs();
     this.detailsOpen = false;
     this.unlockEntity = undefined;
   }
@@ -104,8 +115,12 @@ export class VolvoCarsCard extends LitElement {
   private moreInfo(entityId?: string) {
     if (entityId) {
       // Native dialogs occupy the top layer; dismiss ours before HA opens its own.
-      this.closeDialog('.details-dialog');
-      this.closeDialog('.climate-dialog');
+      disposeFamilyDialog(
+        this.renderRoot.querySelector<HTMLDialogElement>('.details-dialog'),
+      );
+      disposeFamilyDialog(
+        this.renderRoot.querySelector<HTMLDialogElement>('.climate-dialog'),
+      );
       this.dispatchEvent(
         new CustomEvent('hass-more-info', {
           detail: { entityId },
@@ -138,14 +153,29 @@ export class VolvoCarsCard extends LitElement {
     }
   }
   private closeDialog(selector: string) {
-    this.renderRoot?.querySelector<HTMLDialogElement>(selector)?.close();
+    closeFamilyDialog(
+      this.renderRoot?.querySelector<HTMLDialogElement>(selector),
+    );
   }
-  private async openDialog(selector: string) {
+  private disposeDialogs() {
+    this.renderRoot
+      ?.querySelectorAll<HTMLDialogElement>('dialog')
+      .forEach(disposeFamilyDialog);
+  }
+  private async openDialog(selector: string, opener?: HTMLElement) {
     const config = this.config;
     await this.updateComplete;
     if (!this.isConnected || this.config !== config) return;
     const dialog = this.renderRoot.querySelector<HTMLDialogElement>(selector);
-    if (dialog && !dialog.open) dialog.showModal();
+    if (dialog && !dialog.open)
+      showFamilyDialog(dialog, {
+        opener,
+        initialFocus:
+          dialog.querySelector<HTMLElement>('[autofocus]') ??
+          dialog.querySelector<HTMLElement>('.family-icon-button'),
+        // All settings here apply immediately; there is no unsaved modal draft.
+        onBackdrop: () => this.closeDialog(selector),
+      });
   }
   private canService(domain: string, service: string) {
     return (
@@ -156,7 +186,7 @@ export class VolvoCarsCard extends LitElement {
   private get busy() {
     return !!this.commands.pending;
   }
-  private async lockAction(car: ResolvedCar) {
+  private async lockAction(car: ResolvedCar, opener?: HTMLElement) {
     if (this.busy) return;
     const entity = this.entity(car.entities.lock);
     if (!entity || !['locked', 'unlocked'].includes(entity.state)) return;
@@ -166,7 +196,7 @@ export class VolvoCarsCard extends LitElement {
     }
     if (entity.state === 'locked') {
       this.unlockEntity = car.entities.lock;
-      await this.openDialog('.unlock-dialog');
+      await this.openDialog('.unlock-dialog', opener);
     } else await this.commands.lock(car.entities.lock, 'locked');
   }
   private async confirmUnlock() {
@@ -193,15 +223,17 @@ export class VolvoCarsCard extends LitElement {
             f.kind === 'error'
               ? 'mdi:alert-circle-outline'
               : 'mdi:information-outline',
-          )}<span>${f.message}</span>${f.kind !== 'pending'
-            ? html`<button
-                class="icon-button"
-                aria-label="Dismiss message"
-                @click=${() => this.commands.clearFeedback()}
-              >
-                ${icon('mdi:close')}
-              </button>`
-            : nothing}
+          )}<span>${f.message}</span>${
+            f.kind !== 'pending'
+              ? html`<button
+                  class="icon-button"
+                  aria-label="Dismiss message"
+                  @click=${() => this.commands.clearFeedback()}
+                >
+                  ${icon(UI_ICONS.close)}
+                </button>`
+              : nothing
+          }
         </div>`
       : nothing;
   }
@@ -228,7 +260,7 @@ export class VolvoCarsCard extends LitElement {
     return list.map(
       (a) =>
         html`<button
-          class="action quiet"
+          class="action family-action quiet"
           data-action=${a.key}
           ?disabled=${this.busy || !this.canService('button', 'press')}
           @click=${() => this.commands.press(a.entity, a.label)}
@@ -260,89 +292,99 @@ export class VolvoCarsCard extends LitElement {
       id="car-details"
       aria-label="Car details"
     >
-      ${car.show.includes('charging')
-        ? html`<div class="detail-section">
-            <h3>Charging details</h3>
-            <p>${charge.detail}</p>
-            <dl>
-              ${charge.diagnostics.map(
-                (d) =>
-                  html`<div>
-                    <dt>${d.label}</dt>
-                    <dd>
-                      <button
-                        class="text-button"
-                        @click=${() => this.moreInfo(d.entity)}
-                      >
-                        ${d.value}
-                      </button>
-                    </dd>
-                  </div>`,
-              )}
-            </dl>
-          </div>`
-        : nothing}
-      ${car.show.includes('openings')
-        ? html`<div class="detail-section">
-            <h3>Doors & windows</h3>
-            <p>${openings.detail}</p>
-            <div class="opening-grid">
-              ${car.openings
-                .filter((o) => this.entity(o.entity))
-                .map((o) => {
-                  const state = this.entity(o.entity)?.state;
-                  const expected =
-                    o.key === 'tank_lid' && charge.connection === 'connected';
-                  const label = expected
-                    ? 'Cable connected'
-                    : state === 'on'
-                      ? 'Open'
-                      : state === 'off'
-                        ? 'Closed'
-                        : 'Unavailable';
-                  return html`<button
-                    class="opening-item ${!expected && state === 'on'
-                      ? 'warning'
-                      : ''}"
-                    @click=${() => this.moreInfo(o.entity)}
-                  >
-                    ${icon(o.icon)}<span
-                      >${o.label}<small>${label}</small></span
+      ${
+        car.show.includes('charging')
+          ? html`<div class="detail-section">
+              <h3>Charging details</h3>
+              <p>${charge.detail}</p>
+              <dl>
+                ${charge.diagnostics.map(
+                  (d) =>
+                    html`<div>
+                      <dt>${d.label}</dt>
+                      <dd>
+                        <button
+                          class="text-button"
+                          @click=${() => this.moreInfo(d.entity)}
+                        >
+                          ${d.value}
+                        </button>
+                      </dd>
+                    </div>`,
+                )}
+              </dl>
+            </div>`
+          : nothing
+      }
+      ${
+        car.show.includes('openings')
+          ? html`<div class="detail-section">
+              <h3>Doors & windows</h3>
+              <p>${openings.detail}</p>
+              <div class="opening-grid">
+                ${car.openings
+                  .filter((o) => this.entity(o.entity))
+                  .map((o) => {
+                    const state = this.entity(o.entity)?.state;
+                    const expected =
+                      o.key === 'tank_lid' && charge.connection === 'connected';
+                    const label = expected
+                      ? 'Cable connected'
+                      : state === 'on'
+                        ? 'Open'
+                        : state === 'off'
+                          ? 'Closed'
+                          : 'Unavailable';
+                    return html`<button
+                      class="opening-item ${
+                        !expected && state === 'on' ? 'warning' : ''
+                      }"
+                      @click=${() => this.moreInfo(o.entity)}
                     >
-                  </button>`;
-                })}
-            </div>
-          </div>`
-        : nothing}
-      ${car.show.includes('actions') && this.actionButtons(car).length
-        ? html`<div class="detail-section">
-            <h3>Find your car</h3>
-            <div class="actions">${this.actionButtons(car)}</div>
-          </div>`
-        : nothing}
-      ${car.imageEntity && available(this.entity(car.imageEntity))
-        ? html`<button
-            class="detail-row"
-            data-action="location"
-            @click=${() => this.moreInfo(car.imageEntity)}
-          >
-            <span>${icon('mdi:map-marker-outline')}Car location</span>${icon(
-              'mdi:chevron-right',
-            )}
-          </button>`
-        : nothing}
-      ${car.show.includes('odometer') && available(odometer)
-        ? html`<button
-            class="detail-row"
-            @click=${() => this.moreInfo(car.entities.odometer)}
-          >
-            <span>Odometer</span
-            ><strong
-              >${odometer!.state}
-              ${odometer!.attributes.unit_of_measurement ?? 'km'}</strong
+                      ${icon(o.icon)}<span
+                        >${o.label}<small>${label}</small></span
+                      >
+                    </button>`;
+                  })}
+              </div>
+            </div>`
+          : nothing
+      }
+      ${
+        car.show.includes('actions') && this.actionButtons(car).length
+          ? html`<div class="detail-section">
+              <h3>Find your car</h3>
+              <div class="actions">${this.actionButtons(car)}</div>
+            </div>`
+          : nothing
+      }
+      ${
+        car.imageEntity && available(this.entity(car.imageEntity))
+          ? html`<button
+              class="detail-row"
+              data-action="location"
+              @click=${() => this.moreInfo(car.imageEntity)}
             >
-          </button>`
-        : nothing}
+              <span>${icon('mdi:map-marker-outline')}Car location</span>${icon(
+                'mdi:chevron-right',
+              )}
+            </button>`
+          : nothing
+      }
+      ${
+        car.show.includes('odometer') && available(odometer)
+          ? html`<button
+              class="detail-row"
+              @click=${() => this.moreInfo(car.entities.odometer)}
+            >
+              <span>Odometer</span
+              ><strong
+                >${odometer!.state}
+                ${odometer!.attributes.unit_of_measurement ?? 'km'}</strong
+              >
+            </button>`
+          : nothing
+      }
       <details class="update-details">
         <summary>Reading timestamps</summary>
         <p>
@@ -355,14 +397,16 @@ export class VolvoCarsCard extends LitElement {
               html`<div>
                 <dt>${u.label}</dt>
                 <dd>
-                  ${u.at && Number.isFinite(Date.parse(u.at))
-                    ? html`<time datetime=${u.at}
-                        >${new Intl.DateTimeFormat(
-                          this.hass?.locale?.language,
-                          { dateStyle: 'short', timeStyle: 'short' },
-                        ).format(new Date(u.at))}</time
-                      >`
-                    : 'Unavailable'}
+                  ${
+                    u.at && Number.isFinite(Date.parse(u.at))
+                      ? html`<time datetime=${u.at}
+                          >${new Intl.DateTimeFormat(
+                            this.hass?.locale?.language,
+                            { dateStyle: 'short', timeStyle: 'short' },
+                          ).format(new Date(u.at))}</time
+                        >`
+                      : 'Unavailable'
+                  }
                 </dd>
               </div>`,
           )}
@@ -375,9 +419,11 @@ export class VolvoCarsCard extends LitElement {
     if (!car || !this.hass)
       return html`<ha-card
         ><p class="empty">
-          ${car
-            ? 'Waiting for Home Assistant…'
-            : 'Choose a car in the card settings.'}
+          ${
+            car
+              ? 'Waiting for Home Assistant…'
+              : 'Choose a car in the card settings.'
+          }
         </p></ha-card
       >`;
     const charge = deriveCharging(this.hass, car),
@@ -433,36 +479,40 @@ export class VolvoCarsCard extends LitElement {
                 class="surface vehicle ${car.layout}"
                 aria-label=${`${car.name} status`}
               >
-                <header class="identity">
-                  <h2>${car.name}</h2>
+                <header class="identity family-header">
+                  <h2 class="family-title">${car.name}</h2>
                 </header>
-                ${image && !this.imageFailed
-                  ? html`<div
-                      class="vehicle-image"
-                      style=${`--image-height:${car.layout === 'compact' ? car.thumb.height : car.bannerHeight}px`}
-                    >
-                      ${frame
-                        ? html`<svg
-                            viewBox=${frame.viewBox}
-                            role="img"
-                            aria-label=${car.name}
-                          >
-                            <image
-                              href=${image}
-                              width=${frame.naturalWidth}
-                              height=${frame.naturalHeight}
-                              @error=${() => this.imageError(image, true)}
-                            ></image>
-                          </svg>`
-                        : html`<img
-                            src=${image}
-                            alt=${car.name}
-                            referrerpolicy="no-referrer"
-                            @load=${this.frameImage}
-                            @error=${() => this.imageError(image)}
-                          />`}
-                    </div>`
-                  : nothing}
+                ${
+                  image && !this.imageFailed
+                    ? html`<div
+                        class="vehicle-image"
+                        style=${`--image-height:${car.layout === 'compact' ? car.thumb.height : car.bannerHeight}px`}
+                      >
+                        ${
+                          frame
+                            ? html`<svg
+                                viewBox=${frame.viewBox}
+                                role="img"
+                                aria-label=${car.name}
+                              >
+                                <image
+                                  href=${image}
+                                  width=${frame.naturalWidth}
+                                  height=${frame.naturalHeight}
+                                  @error=${() => this.imageError(image, true)}
+                                ></image>
+                              </svg>`
+                            : html`<img
+                                src=${image}
+                                alt=${car.name}
+                                referrerpolicy="no-referrer"
+                                @load=${this.frameImage}
+                                @error=${() => this.imageError(image)}
+                              />`
+                        }
+                      </div>`
+                    : nothing
+                }
                 <div class="energy">
                   <button
                     class="battery-figure"
@@ -473,16 +523,18 @@ export class VolvoCarsCard extends LitElement {
                     <span class="battery-value"
                       >${battery ?? '—'}<small>%</small></span
                     ><span class="caption"
-                      >Battery${target !== undefined
-                        ? ` · Target ${target}%`
-                        : ''}</span
+                      >Battery${
+                        target !== undefined ? ` · Target ${target}%` : ''
+                      }</span
                     >
                   </button>
                   <div class="range-figure">
                     <span
-                      >${rangeValue !== undefined && rangeValue >= 0
-                        ? Math.round(rangeValue)
-                        : '—'}
+                      >${
+                        rangeValue !== undefined && rangeValue >= 0
+                          ? Math.round(rangeValue)
+                          : '—'
+                      }
                       <small
                         >${range?.attributes.unit_of_measurement ?? 'km'}</small
                       ></span
@@ -496,20 +548,24 @@ export class VolvoCarsCard extends LitElement {
                   aria-valuemin="0"
                   aria-valuemax="100"
                   aria-valuenow=${battery ?? nothing}
-                  aria-valuetext=${battery === undefined
-                    ? 'Unavailable'
-                    : `${battery}%${target !== undefined ? `, target ${target}%` : ''}`}
+                  aria-valuetext=${
+                    battery === undefined
+                      ? 'Unavailable'
+                      : `${battery}%${target !== undefined ? `, target ${target}%` : ''}`
+                  }
                 >
                   <span
                     class="battery-fill ${charge.active ? 'active' : ''}"
                     style=${`width:${battery ?? 0}%`}
                   ></span
-                  >${target !== undefined
-                    ? html`<span
-                        class="target-marker"
-                        style=${`left:${target}%`}
-                      ></span>`
-                    : nothing}
+                  >${
+                    target !== undefined
+                      ? html`<span
+                          class="target-marker"
+                          style=${`left:${target}%`}
+                        ></span>`
+                      : nothing
+                  }
                 </div>
                 <div class="status-overview">
                   <button
@@ -533,79 +589,102 @@ export class VolvoCarsCard extends LitElement {
                               : 'mdi:ev-station',
                       )}</span
                     ><span class="status-copy"
-                      ><strong>${charge.label}</strong>${charge.active &&
-                      (charge.power || charge.remaining)
-                        ? html`<span
-                            >${[
-                              charge.power,
-                              charge.remaining
-                                ? `${charge.remaining} remaining`
-                                : undefined,
-                            ]
-                              .filter(Boolean)
-                              .join(' · ')}</span
-                          >`
-                        : nothing}</span
+                      ><strong>${charge.label}</strong>${
+                        charge.active && (charge.power || charge.remaining)
+                          ? html`<span
+                              >${[
+                                charge.power,
+                                charge.remaining
+                                  ? `${charge.remaining} remaining`
+                                  : undefined,
+                              ]
+                                .filter(Boolean)
+                                .join(' · ')}</span
+                            >`
+                          : nothing
+                      }</span
                     >${icon('mdi:chevron-right')}
                   </button>
                   <div
-                    class="openings ${openings.tone} ${openings.open.length ||
-                    openings.unknown.length
-                      ? 'needs-attention'
-                      : ''}"
+                    class="openings ${openings.tone} ${
+                      openings.open.length || openings.unknown.length
+                        ? 'needs-attention'
+                        : ''
+                    }"
                   >
                     <div class="opening-pills">
                       ${openings.open.map(
-                        (o) => html`<button
-                          class="opening-pill warning"
-                          data-opening=${o.key}
-                          aria-label=${`${o.label} open`}
-                          @click=${() => this.moreInfo(o.entity)}
-                        >${icon(o.icon)}${o.label}</button>`,
+                        (o) =>
+                          html`<button
+                            class="opening-pill warning"
+                            data-opening=${o.key}
+                            aria-label=${`${o.label} open`}
+                            @click=${() => this.moreInfo(o.entity)}
+                          >
+                            ${icon(o.icon)}${o.label}
+                          </button>`,
                       )}
-                      ${openings.unknown.length
-                        ? html`<span class="opening-pill neutral" title=${openings.detail}>
-                            ${icon('mdi:help-circle-outline')}
-                            ${!openings.open.length && openings.label === 'Openings unavailable'
-                              ? openings.label
-                              : `${openings.unknown.length} ${openings.unknown.length === 1 ? 'sensor unavailable' : 'sensors unavailable'}`}
-                          </span>`
-                        : !openings.open.length
-                          ? html`<span class="opening-pill neutral" title=${openings.detail}>
-                              ${icon('mdi:shield-check-outline')}${openings.label}
+                      ${
+                        openings.unknown.length
+                          ? html`<span
+                              class="opening-pill neutral"
+                              title=${openings.detail}
+                            >
+                              ${icon('mdi:help-circle-outline')}
+                              ${
+                                !openings.open.length &&
+                                openings.label === 'Openings unavailable'
+                                  ? openings.label
+                                  : `${openings.unknown.length} ${openings.unknown.length === 1 ? 'sensor unavailable' : 'sensors unavailable'}`
+                              }
                             </span>`
-                          : nothing}
+                          : !openings.open.length
+                            ? html`<span
+                                class="opening-pill neutral"
+                                title=${openings.detail}
+                              >
+                                ${icon('mdi:shield-check-outline')}${openings.label}
+                              </span>`
+                            : nothing
+                      }
                     </div>
                   </div>
                 </div>
                 <div class="controls">
                   <button
-                    class="action ${locking ? 'primary' : 'secondary'}"
+                    class="action family-action ${locking ? 'primary' : 'secondary'}"
                     data-action="lock"
                     title=${`${this.statusLock(car)} — ${lockLabel}`}
-                    ?disabled=${!knownLock ||
-                    this.busy ||
-                    !this.canService('lock', locking ? 'lock' : 'unlock')}
-                    @click=${() => this.lockAction(car)}
+                    ?disabled=${
+                      !knownLock ||
+                      this.busy ||
+                      !this.canService('lock', locking ? 'lock' : 'unlock')
+                    }
+                    @click=${(event: Event) => this.lockAction(car, event.currentTarget as HTMLElement)}
                   >
                     ${icon(lockIcon)}${lockLabel}</button
-                  >${climate
-                    ? html`<button
-                        class="action secondary"
-                        data-action="climate"
-                        aria-haspopup="dialog"
-                        @click=${() => this.openDialog('.climate-dialog')}
-                      >
-                        ${icon('mdi:fan')}Climate
-                      </button>`
-                    : nothing}<button
-                    class="action secondary"
+                  >${
+                    climate
+                      ? html`<button
+                          class="action family-action secondary"
+                          data-action="climate"
+                          aria-haspopup="dialog"
+                          @click=${(event: Event) => this.openDialog('.climate-dialog', event.currentTarget as HTMLElement)}
+                        >
+                          ${icon('mdi:fan')}Climate
+                        </button>`
+                      : nothing
+                  }<button
+                    class="action family-action secondary"
                     data-action="disclosure"
                     aria-haspopup="dialog"
                     aria-controls="car-details-dialog"
-                    @click=${() => {
+                    @click=${(event: Event) => {
                       this.detailsOpen = true;
-                      this.openDialog('.details-dialog');
+                      this.openDialog(
+                        '.details-dialog',
+                        event.currentTarget as HTMLElement,
+                      );
                     }}
                   >
                     ${icon('mdi:information-outline')}Details
@@ -619,42 +698,57 @@ export class VolvoCarsCard extends LitElement {
       </div>
       <dialog
         id="car-details-dialog"
-        class="details-dialog"
+        class="details-dialog family-dialog long"
         aria-labelledby="details-title"
         @close=${() => (this.detailsOpen = false)}
         @cancel=${() => (this.detailsOpen = false)}
       >
-        <div class="dialog-heading">
+        <div class="family-dialog-header">
           <h3 id="details-title">Details · ${car.name}</h3>
           <button
-            class="icon-button"
+            class="family-icon-button"
+            title="Close"
             data-action="close-details"
             aria-label="Close car details"
             autofocus
             @click=${() => this.closeDialog('.details-dialog')}
           >
-            ${icon('mdi:close')}
+            ${icon(UI_ICONS.close)}
           </button>
         </div>
-        <div class="details-content">
-          ${this.detailsOpen
-            ? html`${this.feedback()}${this.details(car)}`
-            : nothing}
+        <div class="details-content family-dialog-body">
+          ${
+            this.detailsOpen
+              ? html`${this.feedback()}${this.details(car)}`
+              : nothing
+          }
         </div>
       </dialog>
       <dialog
-        class="unlock-dialog"
+        class="unlock-dialog family-dialog"
         aria-labelledby="unlock-title"
         @close=${() => (this.unlockEntity = undefined)}
         @cancel=${() => (this.unlockEntity = undefined)}
       >
-        <div class="dialog-heading">
+        <div class="family-dialog-header">
           <h3 id="unlock-title">Unlock ${car.name}?</h3>
-        </div>
-        <p>This unlocks the car remotely.</p>
-        <div class="actions">
           <button
-            class="action secondary"
+            type="button"
+            class="family-icon-button"
+            data-action="close-unlock"
+            aria-label="Close unlock confirmation"
+            title="Close"
+            @click=${() => this.closeDialog('.unlock-dialog')}
+          >
+            ${icon(UI_ICONS.close)}
+          </button>
+        </div>
+        <div class="family-dialog-body">
+          <p>This unlocks the car remotely.</p>
+        </div>
+        <div class="actions family-dialog-footer">
+          <button
+            class="action family-action secondary"
             data-action="cancel-unlock"
             autofocus
             @click=${() => {
@@ -664,31 +758,39 @@ export class VolvoCarsCard extends LitElement {
           >
             Cancel</button
           ><button
-            class="action primary"
+            class="action family-action primary"
             data-action="confirm-unlock"
-            ?disabled=${this.busy ||
-            this.unlockEntity !== car.entities.lock ||
-            lock?.state !== 'locked'}
+            ?disabled=${
+              this.busy ||
+              this.unlockEntity !== car.entities.lock ||
+              lock?.state !== 'locked'
+            }
             @click=${() => this.confirmUnlock()}
           >
             ${icon(lockIcon)}Unlock car
           </button>
         </div>
       </dialog>
-      <dialog class="climate-dialog" aria-labelledby="climate-title">
-        <div class="dialog-heading">
+      <dialog
+        class="climate-dialog family-dialog"
+        aria-labelledby="climate-title"
+      >
+        <div class="family-dialog-header">
           <h3 id="climate-title">Climate · ${car.name}</h3>
           <button
-            class="icon-button"
+            class="family-icon-button"
+            title="Close"
             aria-label="Close climate controls"
             @click=${() => this.closeDialog('.climate-dialog')}
           >
-            ${icon('mdi:close')}
+            ${icon(UI_ICONS.close)}
           </button>
         </div>
-        <p>Precondition the cabin before you leave.</p>
-        <div class="actions">${this.actionButtons(car, true)}</div>
-        ${this.feedback()}
+        <div class="family-dialog-body">
+          <p>Precondition the cabin before you leave.</p>
+          <div class="actions">${this.actionButtons(car, true)}</div>
+          ${this.feedback()}
+        </div>
       </dialog>`;
   }
 }
@@ -702,4 +804,4 @@ cardWindow.customCards.push({
   description: 'Battery, charging, doors, windows and controls for your Volvo.',
   preview: true,
 });
-console.info('VOLVO CARS CARD 0.6.6');
+console.info('VOLVO CARS CARD 0.6.7');
