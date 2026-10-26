@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.2 — 2026-10-26
+
+- Bundle shared UI 1.0.1 to keep notices above activation glows while retaining existing controls and domain behavior.
+
 ## 0.7.1 — 2026-10-26
 
 - Use the canonical Details icon and identify native and shared modal launchers consistently for assistive technology.
