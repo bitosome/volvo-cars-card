@@ -22,7 +22,8 @@ export const cardStyles = css`
     padding: var(--tile-padding);
     background: var(--car-surface);
     border: 1px solid var(--divider-color, rgba(255, 255, 255, 0.06));
-    overflow: visible;
+    /* Bound the halo to this dashboard card; inner tile gaps remain open. */
+    overflow: clip;
   }
   .root {
     isolation: isolate;

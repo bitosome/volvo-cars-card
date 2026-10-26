@@ -683,4 +683,4 @@ cardWindow.customCards.push({
   description: 'Battery, charging, doors, windows and controls for your Volvo.',
   preview: true,
 });
-console.info('VOLVO CARS CARD 0.7.2');
+console.info('VOLVO CARS CARD 0.7.3');

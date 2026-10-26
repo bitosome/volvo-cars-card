@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.3 — 2026-10-26
+
+- Bound activation glows to the outer dashboard card so they cannot wash over neighboring cards. Keep internal tile gaps, focus rings and native top-layer dialogs visible.
+
 ## 0.7.2 — 2026-10-26
 
 - Bundle shared UI 1.0.1 to keep notices above activation glows while retaining existing controls and domain behavior.
