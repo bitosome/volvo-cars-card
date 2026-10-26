@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.1 — 2026-10-26
+
+- Use the canonical Details icon and identify native and shared modal launchers consistently for assistive technology.
+- Keep direct Lock actions distinct from Unlock or code-entry dialogs; preserve existing vehicle commands and acknowledgement behavior.
+
 ## 0.7.0 — 2026-10-25
 
 - Bundle the versioned `@bitosome/ha-card-ui` package for Space Hub tokens, activation glows, reusable feedback and modal behavior.

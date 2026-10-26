@@ -258,6 +258,7 @@ export class VolvoCarsCard extends LitElement {
                       <dd>
                         <button
                           class="text-button"
+                          aria-haspopup="dialog"
                           @click=${() => this.moreInfo(d.entity)}
                         >
                           ${d.value}
@@ -292,6 +293,7 @@ export class VolvoCarsCard extends LitElement {
                       class="opening-item ${
                         !expected && state === 'on' ? 'warning' : ''
                       }"
+                      aria-haspopup="dialog"
                       @click=${() => this.moreInfo(o.entity)}
                     >
                       ${icon(o.icon)}<span
@@ -316,6 +318,7 @@ export class VolvoCarsCard extends LitElement {
           ? html`<button
               class="detail-row"
               data-action="location"
+              aria-haspopup="dialog"
               @click=${() => this.moreInfo(car.imageEntity)}
             >
               <span>${icon('mdi:map-marker-outline')}Car location</span>${icon(
@@ -328,6 +331,7 @@ export class VolvoCarsCard extends LitElement {
         car.show.includes('odometer') && available(odometer)
           ? html`<button
               class="detail-row"
+              aria-haspopup="dialog"
               @click=${() => this.moreInfo(car.entities.odometer)}
             >
               <span>Odometer</span
@@ -470,6 +474,7 @@ export class VolvoCarsCard extends LitElement {
                   <button
                     class="battery-figure"
                     data-action="identity"
+                    aria-haspopup="dialog"
                     @click=${() => this.moreInfo(car.entities.battery)}
                     aria-label=${`Battery ${battery === undefined ? 'unavailable' : `${battery} percent`}`}
                   >
@@ -523,6 +528,7 @@ export class VolvoCarsCard extends LitElement {
                 <div class="status-overview">
                   <button
                     class="charging-status ${charge.tone}"
+                    aria-haspopup="dialog"
                     @click=${() =>
                       this.moreInfo(
                         charge.connection === 'fault' ||
@@ -572,6 +578,7 @@ export class VolvoCarsCard extends LitElement {
                             class="opening-pill warning"
                             data-opening=${o.key}
                             aria-label=${`${o.label} open`}
+                            aria-haspopup="dialog"
                             @click=${() => this.moreInfo(o.entity)}
                           >
                             ${icon(o.icon)}${o.label}
@@ -607,6 +614,7 @@ export class VolvoCarsCard extends LitElement {
                   <button
                     class="action family-action ${locking ? 'primary' : 'secondary'}"
                     data-action="lock"
+                    aria-haspopup=${locking && !lock?.attributes.code_format && !lock?.attributes.code_required ? 'false' : 'dialog'}
                     title=${`${this.statusLock(car)} — ${lockLabel}`}
                     ?disabled=${
                       !knownLock ||
@@ -639,7 +647,7 @@ export class VolvoCarsCard extends LitElement {
                       );
                     }}
                   >
-                    ${icon('mdi:information-outline')}Details
+                    ${icon(UI_ICONS.details)}Details
                   </button>
                 </div>
                 ${this.feedback()}
@@ -675,4 +683,4 @@ cardWindow.customCards.push({
   description: 'Battery, charging, doors, windows and controls for your Volvo.',
   preview: true,
 });
-console.info('VOLVO CARS CARD 0.7.0');
+console.info('VOLVO CARS CARD 0.7.1');

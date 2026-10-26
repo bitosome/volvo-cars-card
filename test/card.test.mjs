@@ -929,3 +929,15 @@ test('details backdrop dismisses only a gesture that starts and ends outside', a
   assert.equal(root(card).activeElement, opener);
   assert.equal(calls.length, 0);
 });
+
+test('modal and direct-action launchers expose their actual interaction type',async()=>{
+  const {card,calls}=await fixture();
+  for(const selector of ['[data-action="disclosure"]','[data-action="climate"]','[data-action="identity"]','.charging-status','[data-action="lock"]']){
+    const button=card.shadowRoot.querySelector(selector);
+    assert.equal(button.getAttribute('aria-haspopup'),'dialog');
+    assert.equal(button.hasAttribute('aria-expanded'),false);
+  }
+  card.hass={...card.hass,states:{...card.hass.states,'lock.volvo_ex30_lock':entity('unlocked')}};await settle(card);
+  assert.equal(card.shadowRoot.querySelector('[data-action="lock"]').getAttribute('aria-haspopup'),'false');
+  assert.equal(calls.length,0);
+});
