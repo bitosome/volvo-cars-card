@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.4 — 2026-10-26
+
+- Keep the original loaded car image when cropping transparent margins instead of loading it again inside SVG. This removes the permanent small-image fallback after a second-load failure.
+- Reconcile already-loaded images after render/reconfiguration, so image sizing does not depend on receiving another load event.
+- Preserve responsive image proportions, configured height and safe uncropped fallback for images that cannot be sampled.
+
 ## 0.7.3 — 2026-10-26
 
 - Bound activation glows to the outer dashboard card so they cannot wash over neighboring cards. Keep internal tile gaps, focus rings and native top-layer dialogs visible.

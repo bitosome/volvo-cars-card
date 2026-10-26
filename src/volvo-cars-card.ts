@@ -51,7 +51,7 @@ export class VolvoCarsCard extends LitElement {
   private flow = new FamilyFlowController<'details' | 'climate' | 'unlock'>(this, {
     onChange: (route) => { if (route !== 'unlock') this.unlockEntity = undefined; },
   });
-  private unframedImage?: string;
+  private measuredImage?: { element: HTMLImageElement; source: string };
   private lastImage?: string;
   private commands = new VehicleCommands(
     () => this.hass,
@@ -87,7 +87,7 @@ export class VolvoCarsCard extends LitElement {
     this.unlockEntity = undefined;
     this.imageFailed = false;
     this.imageFrame = undefined;
-    this.unframedImage = undefined;
+    this.measuredImage = undefined;
   }
   getCardSize() {
     return this.config?.layout === 'compact' ? 4 : 7;
@@ -106,9 +106,12 @@ export class VolvoCarsCard extends LitElement {
       if (image !== this.lastImage) {
         this.lastImage = image;
         this.imageFailed = false;
-        this.unframedImage = undefined;
+        this.measuredImage = undefined;
       }
     }
+    // Cached images and HA reconfiguration may not emit another load event.
+    const image = this.renderRoot.querySelector<HTMLImageElement>('.vehicle-image img');
+    if (image?.complete && image.naturalWidth > 0) this.measureImage(image);
   }
   private get car() {
     return this.config ? resolveCar(this.config, this.hass) : undefined;
@@ -120,26 +123,21 @@ export class VolvoCarsCard extends LitElement {
     if (entityId) this.flow.handoff(() => showEntityMoreInfo(this, entityId));
   }
   private frameImage(event: Event) {
-    const image = event.currentTarget as HTMLImageElement;
-    const source = image.getAttribute('src');
-    if (
-      !source ||
-      source === this.unframedImage ||
-      source !== hassUrl(this.hass!, this.car?.image ?? '')
-    )
-      return;
-    const frame = getImageFrame(image);
-    if (frame) this.imageFrame = { ...frame, source };
+    this.measureImage(event.currentTarget as HTMLImageElement);
   }
-  private imageError(source: string, framed = false) {
-    if (source !== hassUrl(this.hass!, this.car?.image ?? '')) return;
-    if (framed) {
-      // Retry with the regular image once, without entering a framing loop.
-      this.unframedImage = source;
-      this.imageFrame = undefined;
-    } else {
-      this.imageFailed = true;
-    }
+  private measureImage(image: HTMLImageElement) {
+    const source = image.getAttribute('src');
+    if (!source || image !== this.renderRoot.querySelector('.vehicle-image img') ||
+        source !== hassUrl(this.hass, this.car?.image ?? '') ||
+        (this.measuredImage?.element === image && this.measuredImage.source === source)) return;
+    if (!image.complete || !image.naturalWidth) return;
+    this.measuredImage = { element: image, source };
+    const frame = getImageFrame(image);
+    this.imageFrame = frame ? { ...frame, source } : undefined;
+  }
+  private imageError(source: string) {
+    if (source !== hassUrl(this.hass, this.car?.image ?? '')) return;
+    this.imageFailed = true;
   }
   private closeDialog(_selector: string) { this.flow.close(); }
   private disposeDialogs() { this.flow.forceClose(false); }
@@ -445,28 +443,17 @@ export class VolvoCarsCard extends LitElement {
                         class="vehicle-image"
                         style=${`--image-height:${car.layout === 'compact' ? car.thumb.height : car.bannerHeight}px`}
                       >
-                        ${
-                          frame
-                            ? html`<svg
-                                viewBox=${frame.viewBox}
-                                role="img"
-                                aria-label=${car.name}
-                              >
-                                <image
-                                  href=${image}
-                                  width=${frame.naturalWidth}
-                                  height=${frame.naturalHeight}
-                                  @error=${() => this.imageError(image, true)}
-                                ></image>
-                              </svg>`
-                            : html`<img
-                                src=${image}
-                                alt=${car.name}
-                                referrerpolicy="no-referrer"
-                                @load=${this.frameImage}
-                                @error=${() => this.imageError(image)}
-                              />`
-                        }
+                        <div class="image-frame ${frame ? 'cropped' : ''}"
+                          style=${frame ? `--frame-ratio:${frame.width / frame.height}` : ''}>
+                          <img
+                            src=${image}
+                            alt=${car.name}
+                            referrerpolicy="no-referrer"
+                            style=${frame ? `width:${frame.naturalWidth / frame.width * 100}%;height:${frame.naturalHeight / frame.height * 100}%;left:${-frame.x / frame.width * 100}%;top:${-frame.y / frame.height * 100}%` : ''}
+                            @load=${this.frameImage}
+                            @error=${() => this.imageError(image)}
+                          />
+                        </div>
                       </div>`
                     : nothing
                 }

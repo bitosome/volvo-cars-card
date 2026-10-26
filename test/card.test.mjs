@@ -250,7 +250,7 @@ test('an explicit picture wins; missing or failed pictures leave usable controls
   assert.deepEqual(pictured.calls, []);
   assert.deepEqual(missing.calls, []);
 });
-test('framed images fall back once after SVG failure and stale errors cannot affect a new picture', async () => {
+test('cold and cached images retain the same img while cropping transparent margins', async () => {
   const { card, calls } = await fixture();
   const firstImage = root(card).querySelector('.vehicle-image img');
   const ownerDocument = firstImage.ownerDocument;
@@ -293,25 +293,20 @@ test('framed images fall back once after SVG failure and stale errors cannot aff
   };
   try {
     await load(firstImage);
-    const firstFrame = root(card).querySelector('.vehicle-image svg');
-    assert.ok(firstFrame, 'loaded alpha bounds frame the existing picture');
-    const [x, y, width, height] = firstFrame
-      .getAttribute('viewBox')
-      .split(' ')
-      .map(Number);
-    assert.ok(x > 0 && y > 0 && width < 1024 && height < 512);
-    const firstSvgImage = firstFrame.querySelector('image');
-    assert.equal(firstSvgImage.getAttribute('href'), firstImage.src);
-    firstSvgImage.dispatchEvent(new Event('error'));
-    await settle(card);
-
-    const fallback = root(card).querySelector('.vehicle-image img');
-    assert.ok(fallback, 'failed SVG falls back to the ordinary picture');
-    assert.equal(fallback.src, firstImage.src);
-    await load(fallback);
-    await load(fallback);
+    const firstFrame = root(card).querySelector('.image-frame');
+    assert.ok(firstFrame.classList.contains('cropped'));
+    assert.equal(root(card).querySelector('.vehicle-image img'), firstImage,
+      'framing never replaces the loaded image or introduces an SVG request');
     assert.equal(root(card).querySelector('.vehicle-image svg'), null);
-    assert.equal(samples, 1, 'fallback loads must not restart alpha framing');
+    assert.ok(parseFloat(firstImage.style.width) > 100);
+    assert.ok(parseFloat(firstImage.style.left) < 0);
+    await load(firstImage);
+    assert.equal(samples, 1, 'duplicate load events do not repeat pixel analysis');
+    card.setConfig(CONFIG);
+    await settle(card);
+    assert.ok(root(card).querySelector('.image-frame').classList.contains('cropped'),
+      'reconfiguration remeasures a complete image without requiring a load event');
+    assert.equal(samples, 2);
 
     await update(card, {
       'device_tracker.volvo_ex30_location': entity('not_home', {
@@ -324,20 +319,9 @@ test('framed images fall back once after SVG failure and stale errors cannot aff
       'https://ha.test/api/image/serve/updated/original',
     );
     await load(nextImage);
-    const nextFrame = root(card).querySelector('.vehicle-image svg');
-    assert.ok(nextFrame, 'a new source can be framed after the old fallback');
-    assert.equal(samples, 2);
-
-    firstSvgImage.dispatchEvent(new Event('error'));
-    firstImage.dispatchEvent(new Event('error'));
-    firstImage.dispatchEvent(new Event('load'));
-    await settle(card);
-    assert.equal(
-      root(card).querySelector('.vehicle-image svg'),
-      nextFrame,
-      'late events from the previous source cannot hide or reset the new frame',
-    );
-    assert.equal(samples, 2);
+    assert.equal(nextImage, firstImage, 'a changed source still uses the same HTML image');
+    assert.ok(root(card).querySelector('.image-frame').classList.contains('cropped'));
+    assert.equal(samples, 3);
     assert.deepEqual(calls, []);
   } finally {
     if (originalDescriptor) {

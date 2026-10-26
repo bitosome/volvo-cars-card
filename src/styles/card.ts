@@ -83,15 +83,30 @@ export const cardStyles = css`
     margin: 0 -4px;
     display: grid;
     place-items: center;
+    container-type: size;
   }
-  .vehicle-image img,
-  .vehicle-image svg {
+  .image-frame {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+  }
+  .image-frame.cropped {
+    width: min(100cqw, calc(100cqh * var(--frame-ratio)));
+    height: min(100cqh, calc(100cqw / var(--frame-ratio)));
+  }
+  .vehicle-image img {
     display: block;
     width: 100%;
     height: 100%;
     object-fit: contain;
     min-height: 0;
     max-height: 100%;
+  }
+  .image-frame.cropped img {
+    position: absolute;
+    max-height: none;
+    object-fit: fill;
   }
   .energy {
     display: flex;
