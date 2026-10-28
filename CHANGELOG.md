@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.5 — 2026-10-28
+
+- Read charging glow colors, intensity and pulse speed directly from an explicitly configured SmartEVSE controller.
+- Match charger-card charging, connected/idle and fault glows; keep disconnected and unavailable states neutral.
+- Add a controller selector to the visual editor; preserve shared glow layering and reduced-motion behavior.
+
 ## 0.7.4 — 2026-10-26
 
 - Keep the original loaded car image when cropping transparent margins instead of loading it again inside SVG. This removes the permanent small-image fallback after a second-load failure.

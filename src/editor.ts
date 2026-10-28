@@ -339,6 +339,11 @@ export class VolvoCarsCardEditor extends LitElement {
             )}
         </select></label
       >
+      <label>Charging glow controller<select aria-label="Charging glow controller"
+        @change=${(event: Event) => this.set('controller_entity', (event.target as HTMLSelectElement).value)}>
+        <option value="" ?selected=${!this.config.controller_entity}>No controller glow</option>
+        ${Object.entries(this.hass?.states ?? {}).filter(([id, entity]) => id.startsWith('sensor.') && (entity.attributes.wled_visuals || id === this.config?.controller_entity)).map(([id, entity]) => html`<option value=${id} ?selected=${this.config?.controller_entity === id}>${entity.attributes.friendly_name ?? id}</option>`)}
+      </select></label>
       <h3>Additional details and controls</h3>
       <p>
         Battery, charging state and openings remain visible in the overview.

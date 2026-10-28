@@ -925,3 +925,41 @@ test('modal and direct-action launchers expose their actual interaction type',as
   assert.equal(card.shadowRoot.querySelector('[data-action="lock"]').getAttribute('aria-haspopup'),'false');
   assert.equal(calls.length,0);
 });
+
+test('charging glows use the configured controller palette and effects for each car state', async () => {
+  const controller = 'sensor.charge_controller';
+  const visuals = {
+    off: { color: [148, 163, 184], fx: 0, sx: 0, ix: 0 },
+    idle: { color: [0, 100, 255], fx: 2, sx: 45, ix: 128 },
+    charging: { color: [0, 255, 0], fx: 41, sx: 80, ix: 100 },
+    error: { color: [255, 0, 0], fx: 2, sx: 60, ix: 200 },
+  };
+  for (const [connection, status, color, duration] of [
+    ['connected', 'idle', '0, 100, 255', '2.78s'],
+    ['connected', 'charging', '0, 255, 0', '2.45s'],
+    ['fault', 'idle', '255, 0, 0', '2.64s'],
+  ]) {
+    const { card, calls } = await fixture({config: {...CONFIG, controller_entity: controller}, state: states('ex30', {
+      [controller]: entity('idle', {wled_visuals: visuals}),
+      'sensor.volvo_ex30_charging_connection_status': entity(connection),
+      'sensor.volvo_ex30_charging_status': entity(status),
+    })});
+    const style = card.shadowRoot.querySelector('.glow-under').getAttribute('style');
+    assert.ok(style.includes(color), style);
+    if (duration) assert.ok(style.includes(`animation-duration: ${duration}`));
+    else assert.ok(!style.includes('animation:'));
+    assert.equal(calls.length, 0);
+    card.hass = {...card.hass, states: {...card.hass.states, [controller]: entity('unavailable', {wled_visuals: visuals})}};
+    await settle(card);
+    assert.equal(card.shadowRoot.querySelector('.glow-under').getAttribute('style'), '');
+  }
+});
+
+test('missing or malformed controller palette does not invent a glow', async () => {
+  for (const config of [CONFIG, {...CONFIG, controller_entity: 'sensor.charge_controller'}]) {
+    const {card} = await fixture({config, state: states('ex30', {
+      'sensor.charge_controller': entity('idle', {wled_visuals: {off: {color: ['bad', 1, 2]}}}),
+    })});
+    assert.equal(card.shadowRoot.querySelector('.glow-under').getAttribute('style'), '');
+  }
+});

@@ -1,3 +1,4 @@
+import { chargingGlow } from './charging-glow';
 import { LitElement, html, nothing, type PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { designTokens } from './shared/design-tokens';
@@ -12,7 +13,7 @@ import {
   showEntityMoreInfo,
   UI_ICONS,
 } from './shared/card-primitives';
-import { buildGlow, glowStyles } from './shared/glow';
+import { glowStyles } from './shared/glow';
 import { cardStyles } from './styles/card';
 import {
   available,
@@ -416,15 +417,7 @@ export class VolvoCarsCard extends LitElement {
         (a) =>
           a.key.includes('climatisation') && pressable(this.entity(a.entity)),
       );
-    const glow = buildGlow(
-      charge.tone === 'error'
-        ? { weak: 'rgba(229,57,53,.2)', strong: 'rgba(229,57,53,.4)' }
-        : charge.active
-          ? { weak: 'rgba(103,168,245,.15)', strong: 'rgba(103,168,245,.32)' }
-          : undefined,
-      charge.active ? 'pulse' : 'static',
-      charge.active || charge.tone === 'error',
-    );
+    const glow = chargingGlow(charge, this.entity(this.config?.controller_entity ?? ''));
     return html`<div class="outer">
         <ha-card
           ><div class="root">

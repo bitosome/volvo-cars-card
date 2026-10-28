@@ -100,3 +100,7 @@ MIT; bundled shared dependencies retain their source provenance and notices.
 The build bundles [`@bitosome/ha-card-ui`](https://github.com/bitosome/ha-card-ui), the versioned Space Hub design and behavior library. Its tokens, under-tile activation glows, MDI controls and shared native dialog controller are included in this card's JavaScript. Home Assistant does not need a separate library resource or another card installed. The release URL and integrity are pinned by `package-lock.json`; see [provenance](src/shared/PROVENANCE.md).
 
 Details, Climate and Unlock use the shared shell. X, Escape and deliberate backdrop presses close the flow and restore its opener. Home Assistant more-info receives a clean top-layer handoff. Vehicle commands and confirmations stay bound to the configured vehicle; closing a view does not cancel or duplicate a dispatched command.
+
+### SmartEVSE charging glows
+
+Set `controller_entity: sensor.your_smartevse_controller` (or select **Charging glow controller** in the visual editor) to reuse the controller's `wled_visuals` colors, intensity and pulse speed. The car's own confirmed charging state selects charging, connected/idle (including completed or scheduled), or fault. Disconnected cars remain neutral, matching the charger card. Missing/unavailable controllers, unknown connection state or invalid palettes produce no glow. This is display-only and never commands the charger or car. Glows use the shared UI library, respect reduced motion and remain behind the vehicle tile, bounded by the card.

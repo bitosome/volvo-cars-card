@@ -99,6 +99,8 @@ export interface VolvoCardConfig {
   /** Picture URL. Defaults to the picture of `image_entity`, then the car's tracker. */
   image?: string;
   image_entity?: string;
+  /** SmartEVSE controller supplying the charging-state glow palette. */
+  controller_entity?: string;
   /** Picture size preset. Compact: 96x54 / 128x72 / 160x90. Banner: 110 / 140 / 190 tall. */
   image_size?: ImageSize;
   /** Explicit picture height in pixels, overriding `image_size`. */
@@ -278,6 +280,8 @@ export function validateConfig(raw: VolvoCardConfig): VolvoCardConfig {
     )
       throw new Error(`${key} must be a non-empty string.`);
   }
+  if (raw.controller_entity !== undefined && (typeof raw.controller_entity !== 'string' || !/^sensor\.[a-z0-9_]+$/.test(raw.controller_entity)))
+    throw new Error('controller_entity must be a sensor entity id.');
   if (raw.image_entity && !ID.test(raw.image_entity))
     throw new Error('image_entity must be an entity id.');
   if (raw.entities !== undefined) {
