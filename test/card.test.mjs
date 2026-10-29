@@ -153,7 +153,8 @@ test('loading exposes battery, range, charging and openings without sending comm
   );
   assert.match(cardText(card), /138/);
   assert.match(text(charge(card)), /Unplugged/);
-  assert.match(text(openings(card)), /All closed/);
+  assert.equal(text(openings(card)), '');
+  assert.equal(charge(card).querySelector('[icon="mdi:chevron-right"]'), null);
   assert.equal(
     root(card).querySelector('img').getAttribute('src'),
     'https://ha.test/api/image/serve/example/original',
@@ -476,7 +477,7 @@ test('unlocking requires confirmation and cancellation sends nothing', async () 
     action(card, 'lock').querySelector('ha-icon').icon,
     'mdi:lock-open-variant-outline',
   );
-  assert.equal(text(action(card, 'lock')), 'Lock car');
+  assert.equal(text(action(card, 'lock')), 'Lock');
 });
 test('an unlock confirmation cannot become a lock when telemetry changes', async () => {
   const { card, calls } = await fixture();
@@ -521,7 +522,7 @@ test('locking an unlocked car sends one command and waits for the requested stat
     action(card, 'lock').querySelector('ha-icon').icon,
     'mdi:lock-open-variant-outline',
   );
-  assert.equal(text(action(card, 'lock')), 'Lock car');
+  assert.equal(text(action(card, 'lock')), 'Lock');
   action(card, 'lock').click();
   action(card, 'lock').click();
   await settle(card);

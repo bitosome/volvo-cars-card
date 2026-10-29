@@ -406,7 +406,7 @@ export class VolvoCarsCard extends LitElement {
         : !knownLock
           ? this.statusLock(car)
           : locking
-            ? 'Lock car'
+            ? 'Lock'
             : 'Unlock';
     const image = hassUrl(this.hass, car.image ?? '');
     const frame =
@@ -542,7 +542,7 @@ export class VolvoCarsCard extends LitElement {
                             >`
                           : nothing
                       }</span
-                    >${icon('mdi:chevron-right')}
+                    >
                   </button>
                   <div
                     class="openings ${openings.tone} ${
@@ -578,14 +578,7 @@ export class VolvoCarsCard extends LitElement {
                                   : `${openings.unknown.length} ${openings.unknown.length === 1 ? 'sensor unavailable' : 'sensors unavailable'}`
                               }
                             </span>`
-                          : !openings.open.length
-                            ? html`<span
-                                class="opening-pill neutral"
-                                title=${openings.detail}
-                              >
-                                ${icon('mdi:shield-check-outline')}${openings.label}
-                              </span>`
-                            : nothing
+                          : nothing
                       }
                     </div>
                   </div>

@@ -236,13 +236,6 @@ export const cardStyles = css`
     color: var(--car-muted);
     line-height: 1.4;
   }
-  .charging-status > ha-icon {
-    width: 16px;
-    height: 16px;
-    --mdc-icon-size: 16px;
-    color: var(--car-muted);
-    flex-basis: 16px;
-  }
   .charging-status.active {
     background: color-mix(in srgb, var(--status-active-color) 10%, transparent);
   }
@@ -266,20 +259,9 @@ export const cardStyles = css`
       var(--primary-text-color)
     );
   }
-  .openings {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    min-height: 44px;
-    padding: 0;
-  }
-  .openings.needs-attention {
-    flex-basis: 100%;
-  }
+  .openings,
   .opening-pills {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
+    display: contents;
   }
   .opening-pill {
     display: flex;
