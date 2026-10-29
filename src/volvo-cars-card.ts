@@ -589,6 +589,8 @@ export class VolvoCarsCard extends LitElement {
                     data-action="lock"
                     aria-haspopup=${locking && !lock?.attributes.code_format && !lock?.attributes.code_required ? 'false' : 'dialog'}
                     title=${`${this.statusLock(car)} — ${lockLabel}`}
+                    aria-label=${`${car.name}: ${this.statusLock(car)}. ${lockLabel}`}
+                    aria-busy=${command?.entity === car.entities.lock ? "true" : "false"}
                     ?disabled=${
                       !knownLock ||
                       this.busy ||
@@ -602,6 +604,7 @@ export class VolvoCarsCard extends LitElement {
                       ? html`<button
                           class="action family-action secondary"
                           data-action="climate"
+                          aria-label=${`Climate · ${car.name}`}
                           aria-haspopup="dialog"
                           @click=${(event: Event) => this.openDialog('.climate-dialog', event.currentTarget as HTMLElement)}
                         >
@@ -611,6 +614,7 @@ export class VolvoCarsCard extends LitElement {
                   }<button
                     class="action family-action secondary"
                     data-action="disclosure"
+                    aria-label=${`Details · ${car.name}`}
                     aria-haspopup="dialog"
                     aria-controls="car-details-dialog"
                     @click=${(event: Event) => {
@@ -656,4 +660,4 @@ cardWindow.customCards.push({
   description: 'Battery, charging, doors, windows and controls for your Volvo.',
   preview: true,
 });
-console.info('VOLVO CARS CARD 0.7.3');
+console.info('VOLVO CARS CARD 0.7.7');

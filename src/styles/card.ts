@@ -14,7 +14,7 @@ export const cardStyles = css`
     box-sizing: border-box;
   }
   .outer {
-    container-type: inline-size;
+    container: vehicle-card / inline-size;
   }
   ha-card {
     display: block;
@@ -139,7 +139,7 @@ export const cardStyles = css`
     letter-spacing: -0.02em;
   }
   .caption {
-    font-size: 11px;
+    font-size: 12px;
     line-height: 1.4;
     color: var(--car-muted);
     margin-top: 3px;
@@ -190,7 +190,7 @@ export const cardStyles = css`
   .status-overview {
     display: flex;
     align-items: center;
-    gap: 6px 12px;
+    gap: 8px;
     margin-top: 10px;
     flex-wrap: wrap;
   }
@@ -227,12 +227,12 @@ export const cardStyles = css`
     min-width: 0;
   }
   .status-copy strong {
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 600;
     overflow-wrap: anywhere;
   }
   .status-copy > span {
-    font-size: 11px;
+    font-size: 12px;
     color: var(--car-muted);
     line-height: 1.4;
   }
@@ -268,6 +268,9 @@ export const cardStyles = css`
     align-items: center;
     gap: 6px;
     min-height: 44px;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    text-align: left;
     border: 0;
     border-radius: 999px;
     background: color-mix(
@@ -275,7 +278,7 @@ export const cardStyles = css`
       var(--warning-color, #e9b866) 10%,
       transparent
     );
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 550;
     padding: 9px 11px;
   }
@@ -389,13 +392,14 @@ export const cardStyles = css`
     line-height: 1.5;
   }
   dl > div {
-    display: flex;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     align-items: center;
     gap: 12px;
-    min-height: 32px;
+    min-height: 44px;
   }
   dt {
+    overflow-wrap: anywhere;
     color: var(--car-muted);
   }
   dd {
@@ -410,6 +414,9 @@ export const cardStyles = css`
     color: inherit;
     font-size: 12px;
     min-height: 44px;
+    min-width: 44px;
+    max-width: 100%;
+    overflow-wrap: anywhere;
     padding: 7px 0;
     text-align: right;
   }
@@ -429,9 +436,13 @@ export const cardStyles = css`
     padding: 10px;
     min-height: 52px;
     background: color-mix(in srgb, var(--primary-text-color) 4%, transparent);
-    font-size: 11px;
+    font-size: 13px;
     line-height: 1.4;
     min-width: 0;
+  }
+  .opening-item > span {
+    min-width: 0;
+    overflow-wrap: anywhere;
   }
   .opening-item small {
     display: block;
@@ -469,6 +480,7 @@ export const cardStyles = css`
     font-variant-numeric: tabular-nums;
   }
   .details-content {
+    container: vehicle-details / inline-size;
     padding-top: 0;
   }
   .family-dialog-body > p:first-child {
@@ -515,7 +527,7 @@ export const cardStyles = css`
   .compact .range-figure > span:first-child {
     font-size: 18px;
   }
-  @container (max-width:360px) {
+  @container vehicle-card (max-width:360px) {
     .vehicle {
       padding: 12px;
     }
@@ -525,22 +537,34 @@ export const cardStyles = css`
     .battery-value {
       font-size: 34px;
     }
+  }
+  @container vehicle-card (max-width:420px) {
     .controls {
-      gap: 5px;
+      gap: 6px;
     }
-    .action {
-      font-size: 11px;
-      padding: 9px 6px;
+    /* Keep 13px shared labels readable instead of squeezing icon + text. */
+    .controls .family-action {
+      flex-direction: column;
       gap: 4px;
+      min-height: 64px;
+      padding: 8px 4px;
+      overflow-wrap: normal;
     }
-    .action ha-icon {
-      width: 17px;
-      height: 17px;
-      --mdc-icon-size: 17px;
-      flex-basis: 17px;
-    }
+  }
+  @container vehicle-details (max-width:340px) {
     .opening-grid {
       grid-template-columns: 1fr;
+    }
+    dl > div {
+      gap: 8px;
+    }
+    .update-details dl > div {
+      grid-template-columns: 1fr;
+      gap: 0;
+      padding-block: 6px;
+    }
+    .update-details dd {
+      text-align: left;
     }
   }
   @media (hover: hover) {

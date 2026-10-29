@@ -964,3 +964,20 @@ test('missing or malformed controller palette does not invent a glow', async () 
     assert.equal(card.shadowRoot.querySelector('.glow-under').getAttribute('style'), '');
   }
 });
+
+test('repeated mobile controls announce the car, current lock state and pending action', async () => {
+  const { card, calls } = await fixture();
+  assert.equal(action(card, 'lock').getAttribute('aria-label'), 'Volvo EX30: Locked. Unlock');
+  assert.equal(action(card, 'climate').getAttribute('aria-label'), 'Climate · Volvo EX30');
+  assert.equal(action(card, 'disclosure').getAttribute('aria-label'), 'Details · Volvo EX30');
+  assert.equal(action(card, 'lock').getAttribute('aria-busy'), 'false');
+  action(card, 'lock').click(); await settle(card);
+  assert.equal(calls.length, 0, 'opening a confirmation never unlocks the car');
+  action(card, 'confirm-unlock').click(); await settle(card);
+  assert.equal(calls.length, 1);
+  assert.equal(action(card, 'lock').getAttribute('aria-busy'), 'true');
+  assert.match(action(card, 'lock').getAttribute('aria-label'), /Locked\. Unlocking/);
+  await update(card, { 'lock.volvo_ex30_lock': entity('unlocked') });
+  assert.equal(action(card, 'lock').getAttribute('aria-busy'), 'false');
+  assert.equal(action(card, 'lock').getAttribute('aria-label'), 'Volvo EX30: Unlocked. Lock');
+});
