@@ -125,7 +125,7 @@ const action = (card, name) =>
 const charge = (card) => root(card).querySelector('.charging-status');
 const openings = (card) => root(card).querySelector('.openings');
 const feedback = (card) =>
-  root(card).querySelector('ha-card [role="status"], ha-card [role="alert"]');
+  root(card).querySelector('ha-card .family-notice');
 async function update(card, patch) {
   card.hass = { ...card.hass, states: { ...card.hass.states, ...patch } };
   await settle(card);
@@ -447,6 +447,7 @@ test('unlocking requires confirmation and cancellation sends nothing', async () 
   action(card, 'lock').click();
   await settle(card);
   const confirm = action(card, 'confirm-unlock');
+  assert.equal(text(confirm), 'Unlock');
   assert.equal(confirm.querySelector('ha-icon').icon, 'mdi:lock-outline');
   confirm.click();
   confirm.click();
@@ -458,13 +459,11 @@ test('unlocking requires confirmation and cancellation sends nothing', async () 
       data: { entity_id: 'lock.volvo_ex30_lock' },
     },
   ]);
-  assert.match(text(feedback(card)), /Unlocking/);
+  assert.equal(feedback(card), null);
+  assert.ok(action(card, 'lock').querySelector('.family-pending-indicator'));
+  assert.match(text(action(card, 'lock')), /Unlocking/);
   assert.equal(action(card, 'lock').disabled, true);
-  assert.equal(
-    action(card, 'lock').querySelector('ha-icon').icon,
-    'mdi:lock-outline',
-    'an unlock request does not change the reported locked state',
-  );
+  assert.match(action(card, 'lock').getAttribute('aria-label'), /Locked\. Unlocking/);
   action(card, 'lock').click();
   await settle(card);
   assert.equal(
@@ -473,10 +472,8 @@ test('unlocking requires confirmation and cancellation sends nothing', async () 
     'repeated presses during acknowledgement cannot send another command',
   );
   await update(card, { 'lock.volvo_ex30_lock': entity('unlocked') });
-  assert.equal(
-    action(card, 'lock').querySelector('ha-icon').icon,
-    'mdi:lock-open-variant-outline',
-  );
+  assert.match(action(card, 'lock').getAttribute('aria-label'), /Unlocked\. Lock/);
+  assert.equal(action(card, 'lock').querySelector('ha-icon').icon, 'mdi:lock-open-variant-outline');
   assert.equal(text(action(card, 'lock')), 'Lock');
 });
 test('an unlock confirmation cannot become a lock when telemetry changes', async () => {
@@ -518,10 +515,8 @@ test('locking an unlocked car sends one command and waits for the requested stat
   const { card, calls } = await fixture({
     state: states('ex30', { 'lock.volvo_ex30_lock': entity('unlocked') }),
   });
-  assert.equal(
-    action(card, 'lock').querySelector('ha-icon').icon,
-    'mdi:lock-open-variant-outline',
-  );
+  assert.match(action(card, 'lock').getAttribute('aria-label'), /Unlocked\. Lock/);
+  assert.equal(action(card, 'lock').querySelector('ha-icon').icon, 'mdi:lock-open-variant-outline');
   assert.equal(text(action(card, 'lock')), 'Lock');
   action(card, 'lock').click();
   action(card, 'lock').click();
@@ -542,14 +537,13 @@ test('locking an unlocked car sends one command and waits for the requested stat
     true,
     'unchanged lock telemetry cannot acknowledge a command',
   );
-  assert.match(text(feedback(card)), /Locking/);
-  assert.equal(
-    action(card, 'lock').querySelector('ha-icon').icon,
-    'mdi:lock-open-variant-outline',
-  );
+  assert.equal(feedback(card), null);
+  assert.ok(action(card, 'lock').querySelector('.family-pending-indicator'));
+  assert.match(action(card, 'lock').getAttribute('aria-label'), /Unlocked\. Locking/);
   await update(card, { 'lock.volvo_ex30_lock': entity('locked') });
   assert.equal(action(card, 'lock').disabled, false);
-  assert.match(text(feedback(card)), /Car locked/);
+  assert.equal(feedback(card), null);
+  assert.equal(action(card, 'lock').querySelector('.family-pending-indicator'), null);
   assert.equal(
     action(card, 'lock').querySelector('ha-icon').icon,
     'mdi:lock-outline',
@@ -642,14 +636,36 @@ test('climate opens without acting and shows only available commands', async () 
     },
   ]);
   assert.match(
-    text(root(card).querySelector('.climate-dialog [role="status"]')),
+    text(root(card).querySelector('.climate-dialog .family-notice[role="status"]')),
     /request sent/i,
   );
   assert.doesNotMatch(
-    text(feedback(card)),
+    text(root(card).querySelector('.climate-dialog .family-notice[role="status"]')),
     /is running|started/i,
     'a service response does not confirm climate operation',
   );
+});
+test('pending climate feedback follows the active modal without visible progress bars', async () => {
+  let resolve;
+  const { card } = await fixture({ service: () => new Promise(done => { resolve = done; }) });
+  action(card, 'climate').click();
+  await settle(card);
+  action(card, 'start_climatisation').click();
+  await settle(card);
+  const pending = action(card, 'start_climatisation');
+  assert.equal(pending.getAttribute('aria-busy'), 'true');
+  assert.ok(pending.querySelector('.family-pending-indicator'));
+  assert.equal(root(card).querySelector('.climate-dialog .family-notice'), null);
+  assert.match(text(root(card).querySelector('.climate-dialog .family-visually-hidden')), /Sending/);
+  assert.equal(text(root(card).querySelector('ha-card .family-visually-hidden')), '');
+  card.flow.close();
+  await settle(card);
+  assert.equal(feedback(card), null);
+  assert.match(text(root(card).querySelector('ha-card .family-visually-hidden')), /Sending/);
+  resolve();
+  await settle(card);
+  assert.equal(feedback(card), null);
+  assert.match(text(root(card).querySelector('ha-card .family-visually-hidden')), /request sent/);
 });
 test('quick actions are explicit and unavailable actions are omitted', async () => {
   const { card, calls } = await fixture({
@@ -668,13 +684,14 @@ test('quick actions are explicit and unavailable actions are omitted', async () 
     },
   ]);
   assert.match(
-    text(detailsDialog(card).querySelector('[role="status"]')),
+    text(detailsDialog(card).querySelector('.family-notice[role="status"]')),
     /Flash request sent/,
   );
   action(card, 'close-details').click();
   await settle(card);
   assert.equal(root(card).querySelector('.details'), null);
-  assert.match(text(feedback(card)), /Flash request sent/);
+  assert.equal(feedback(card), null);
+  assert.match(text(root(card).querySelector('.family-visually-hidden')), /Flash request sent/);
 });
 test('empty optional rows hide secondary actions without hiding charging or openings', async () => {
   const { card, calls } = await fixture({ config: { ...CONFIG, show: [] } });

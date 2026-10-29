@@ -9,6 +9,7 @@ import {
   FamilyFlowController,
   renderFamilyDialog,
   componentStyles,
+  pendingIndicator,
   notice,
   showEntityMoreInfo,
   UI_ICONS,
@@ -181,13 +182,21 @@ export class VolvoCarsCard extends LitElement {
     )
       await this.commands.lock(id, 'unlocked');
   }
-  private feedback() {
+  private feedback(main = false) {
     const f = this.commands.feedback;
-    return f ? notice({
+    if (!f || f.kind === 'pending' || (main && f.kind !== 'error')) return nothing;
+    return notice({
       message: f.message,
       tone: f.kind === 'error' ? 'error' : f.kind === 'success' ? 'success' : 'neutral',
-      action: f.kind !== 'pending' ? { label: 'Dismiss', onClick: () => this.commands.clearFeedback() } : undefined,
-    }) : nothing;
+      action: { label: 'Dismiss', onClick: () => this.commands.clearFeedback() },
+    });
+  }
+  private liveFeedback(modal = false) {
+    const f = this.commands.feedback;
+    const message = modal
+      ? f?.kind === 'pending' ? f.message : ''
+      : !this.flow.current && f?.kind !== 'error' ? f?.message ?? '' : '';
+    return html`<span class="family-visually-hidden" role="status" aria-live="polite" aria-atomic="true">${message}</span>`;
   }
   private statusLock(car: ResolvedCar) {
     const state = this.entity(car.entities.lock)?.state;
@@ -214,10 +223,12 @@ export class VolvoCarsCard extends LitElement {
         html`<button
           class="action family-action quiet"
           data-action=${a.key}
+          aria-busy=${this.commands.pending?.entity === a.entity ? 'true' : 'false'}
+          aria-label=${`${a.label} · ${car.name}${this.commands.pending?.entity === a.entity ? ': Sending request' : ''}`}
           ?disabled=${this.busy || !this.canService('button', 'press')}
           @click=${() => this.commands.press(a.entity, a.label)}
         >
-          ${icon(a.icon)}${a.label}
+          ${this.commands.pending?.entity === a.entity ? pendingIndicator() : icon(a.icon)}${this.commands.pending?.entity === a.entity ? 'Sending…' : a.label}
         </button>`,
     );
   }
@@ -598,7 +609,7 @@ export class VolvoCarsCard extends LitElement {
                     }
                     @click=${(event: Event) => this.lockAction(car, event.currentTarget as HTMLElement)}
                   >
-                    ${icon(lockIcon)}${lockLabel}</button
+                    ${command?.entity === car.entities.lock ? pendingIndicator() : icon(lockIcon)}${lockLabel}</button
                   >${
                     climate
                       ? html`<button
@@ -627,7 +638,8 @@ export class VolvoCarsCard extends LitElement {
                     ${icon(UI_ICONS.details)}Details
                   </button>
                 </div>
-                ${this.feedback()}
+                ${this.feedback(true)}
+                ${this.liveFeedback()}
               </section>
             </div>
           </div></ha-card
@@ -639,14 +651,15 @@ export class VolvoCarsCard extends LitElement {
         id: this.flow.current === 'details' ? 'car-details-dialog' : undefined,
         long: this.flow.current === 'details',
         bodyClass: this.flow.current === 'details' ? 'details-content' : undefined,
-        content: this.flow.current === 'details' ? html`${this.feedback()}${this.details(car)}`
+        content: html`${this.liveFeedback(true)}${this.flow.current === 'details' ? html`${this.feedback()}${this.details(car)}`
           : this.flow.current === 'climate' ? html`<p>Precondition the cabin before you leave.</p><div class="actions">${this.actionButtons(car, true)}</div>${this.feedback()}`
-          : html`<p>This unlocks the car remotely.</p>`,
+          : html`<p>This unlocks the car remotely.</p>`}`,
+        footerLayout: 'equal',
         footer: this.flow.current === 'unlock' ? html`
           <button class="action family-action secondary" data-action="cancel-unlock" data-family-initial-focus @click=${() => this.flow.close()}>Cancel</button>
           <button class="action family-action primary" data-action="confirm-unlock"
             ?disabled=${this.busy || this.unlockEntity !== car.entities.lock || lock?.state !== 'locked'}
-            @click=${() => this.confirmUnlock()}>${icon(lockIcon)}Unlock car</button>` : undefined,
+            @click=${() => this.confirmUnlock()}>${icon(lockIcon)}Unlock</button>` : undefined,
       })}`;
   }
 }
@@ -660,4 +673,4 @@ cardWindow.customCards.push({
   description: 'Battery, charging, doors, windows and controls for your Volvo.',
   preview: true,
 });
-console.info('VOLVO CARS CARD 0.7.7');
+console.info('VOLVO CARS CARD 0.7.8');

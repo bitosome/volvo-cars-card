@@ -307,6 +307,11 @@ export const cardStyles = css`
   .controls:not(:has([data-action='climate'])) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+  .family-dialog .actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 130px), 1fr));
+    align-items: stretch;
+  }
   .action {
     border: 0;
     border-radius: 999px;
