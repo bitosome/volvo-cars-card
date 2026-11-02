@@ -34,6 +34,7 @@ import {
 } from './vehicle-state';
 import { VehicleCommands } from './commands';
 import { getImageFrame, type ImageFrame } from './image-framing';
+import { batteryLevel } from './battery-level';
 
 const icon = (name: string) =>
   html`<ha-icon .icon=${name} aria-hidden="true"></ha-icon>`;
@@ -504,7 +505,7 @@ export class VolvoCarsCard extends LitElement {
                   }
                 >
                   <span
-                    class="battery-fill ${charge.active ? 'active' : ''}"
+                    class="battery-fill ${charge.active ? 'active' : ''} ${batteryLevel(battery) ?? ''}"
                     style=${`width:${battery ?? 0}%`}
                   ></span
                   >${
@@ -673,4 +674,4 @@ cardWindow.customCards.push({
   description: 'Battery, charging, doors, windows and controls for your Volvo.',
   preview: true,
 });
-console.info('VOLVO CARS CARD 0.7.8');
+console.info('VOLVO CARS CARD 0.7.9');

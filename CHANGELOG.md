@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.9 — 2026-11-02
+
+- Colour the battery meter by level: green from 60 %, yellow from 20 % to 59 %, red below 20 %. Uses the theme's success, warning and error colours; the band no longer changes to the charging accent while charging.
+
 ## 0.7.5 — 2026-10-28
 
 - Read charging glow colors, intensity and pulse speed directly from an explicitly configured SmartEVSE controller.

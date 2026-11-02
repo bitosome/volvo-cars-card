@@ -161,6 +161,26 @@ test('loading exposes battery, range, charging and openings without sending comm
   );
   assert.deepEqual(calls, []);
 });
+test('battery meter is green from 60 %, yellow from 20 % and red below 20 %', async () => {
+  for (const [level, band] of [
+    ['100', 'high'],
+    ['60', 'high'],
+    ['59', 'medium'],
+    ['20', 'medium'],
+    ['19', 'low'],
+    ['0', 'low'],
+  ]) {
+    const state = states();
+    state['sensor.volvo_ex30_battery'] = entity(level, { unit_of_measurement: '%' });
+    const { card, calls } = await fixture({ state });
+    const fill = root(card).querySelector('.battery-fill');
+    assert.ok(fill.classList.contains(band), `${level} % should be ${band}`);
+    for (const other of ['high', 'medium', 'low'].filter((b) => b !== band))
+      assert.ok(!fill.classList.contains(other), `${level} % is not ${other}`);
+    assert.deepEqual(calls, []);
+    card.remove();
+  }
+});
 for (const layout of ['banner', 'compact', 'full']) {
   test(`${layout} opens details in a modal without inserting them into the dashboard`, async () => {
     const { card, calls } = await fixture({ config: { ...CONFIG, layout } });

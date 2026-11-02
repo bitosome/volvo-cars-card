@@ -175,8 +175,14 @@ export const cardStyles = css`
     background: var(--car-accent);
     transition: width 0.3s;
   }
-  .battery-fill.active {
-    background: var(--status-active-color);
+  .battery-fill.high {
+    background: var(--success-color, #43a047);
+  }
+  .battery-fill.medium {
+    background: var(--warning-color, #ffa600);
+  }
+  .battery-fill.low {
+    background: var(--error-color, #db4437);
   }
   .target-marker {
     position: absolute;
