@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.1 — 2026-11-03
+
+- Bundle shared UI 1.5.0. The battery bar is the shared family level meter, so it has the same 6px track, colours and target marker as the SmartEVSE battery and the Vallox fan speed. The battery bands (green from 60 %, orange from 20 %, red below 20 %) now come from the shared library.
+
 ## 0.8.0 — 2026-11-03
 
 - Bundle shared UI 1.4.0. The charging status and open-door chips use the shared family chips and tones; unknown plug or opening data shows as an outlined unavailable chip.

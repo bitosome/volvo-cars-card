@@ -13,6 +13,8 @@ import {
   notice,
   asyncState,
   stateChip,
+  levelMeter,
+  batteryTone,
   formatHassNumber,
   formatHassDateTime,
   UNAVAILABLE_TEXT,
@@ -39,7 +41,6 @@ import {
 } from './vehicle-state';
 import { VehicleCommands } from './commands';
 import { getImageFrame, type ImageFrame } from './image-framing';
-import { batteryLevel } from './battery-level';
 
 const icon = (name: string) =>
   html`<ha-icon .icon=${name} aria-hidden="true"></ha-icon>`;
@@ -500,32 +501,17 @@ export class VolvoCarsCard extends LitElement {
                     }<span class="caption">Estimated range</span>
                   </div>
                 </div>
-                <div
-                  class="battery-track"
-                  role="meter"
-                  aria-label="Battery level"
-                  aria-valuemin="0"
-                  aria-valuemax="100"
-                  aria-valuenow=${battery ?? nothing}
-                  aria-valuetext=${
+                ${levelMeter({
+                  value: battery,
+                  label: 'Battery level',
+                  valueText:
                     battery === undefined
-                      ? 'Unavailable'
-                      : `${battery}%${target !== undefined ? `, target ${target}%` : ''}`
-                  }
-                >
-                  <span
-                    class="battery-fill ${charge.active ? 'active' : ''} ${batteryLevel(battery) ?? ''}"
-                    style=${`width:${battery ?? 0}%`}
-                  ></span
-                  >${
-                    target !== undefined
-                      ? html`<span
-                          class="target-marker"
-                          style=${`left:${target}%`}
-                        ></span>`
-                      : nothing
-                  }
-                </div>
+                      ? UNAVAILABLE_TEXT
+                      : `${battery}%${target !== undefined ? `, target ${target}%` : ''}`,
+                  tone: batteryTone(battery),
+                  target,
+                  className: 'battery-meter',
+                })}
                 <div class="status-overview">
                   ${stateChip({
                     label: charge.label,
@@ -677,4 +663,4 @@ cardWindow.customCards.push({
   description: 'Battery, charging, doors, windows and controls for your Volvo.',
   preview: true,
 });
-console.info('VOLVO CARS CARD 0.8.0');
+console.info('VOLVO CARS CARD 0.8.1');

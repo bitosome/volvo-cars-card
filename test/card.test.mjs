@@ -163,20 +163,21 @@ test('loading exposes battery, range, charging and openings without sending comm
 });
 test('battery meter is green from 60 %, yellow from 20 % and red below 20 %', async () => {
   for (const [level, band] of [
-    ['100', 'high'],
-    ['60', 'high'],
-    ['59', 'medium'],
-    ['20', 'medium'],
-    ['19', 'low'],
-    ['0', 'low'],
+    ['100', 'success'],
+    ['60', 'success'],
+    ['59', 'warning'],
+    ['20', 'warning'],
+    ['19', 'error'],
+    ['0', 'error'],
   ]) {
     const state = states();
     state['sensor.volvo_ex30_battery'] = entity(level, { unit_of_measurement: '%' });
     const { card, calls } = await fixture({ state });
-    const fill = root(card).querySelector('.battery-fill');
-    assert.ok(fill.classList.contains(band), `${level} % should be ${band}`);
-    for (const other of ['high', 'medium', 'low'].filter((b) => b !== band))
-      assert.ok(!fill.classList.contains(other), `${level} % is not ${other}`);
+    // The shared level meter draws the bar; the card only places it.
+    const meter = root(card).querySelector('.family-level-meter.battery-meter');
+    assert.equal(meter.getAttribute('role'), 'meter');
+    assert.equal(meter.getAttribute('aria-valuenow'), level);
+    assert.equal(meter.querySelector('.family-level-fill').dataset.tone, band, `${level} % should be ${band}`);
     assert.deepEqual(calls, []);
     card.remove();
   }
@@ -797,10 +798,11 @@ test('status chips use shared family chips and tones', async () => {
 });
 test('card colours come from family aliases, not private or raw status colours', () => {
   const styles = customElements.get('volvo-cars-card').styles;
-  const card = styles.map((style) => style.cssText).find((css) => css.includes('.battery-fill'));
+  const card = styles.map((style) => style.cssText).find((css) => css.includes('.battery-meter'));
   assert.ok(card);
   assert.doesNotMatch(card, /--status-|--accent-color|--(success|warning|error)-color|#[0-9a-f]{3,8}\b/i);
-  assert.match(card, /var\(--family-success\)/);
+  assert.match(card, /var\(--family-(success|warning)\)/);
+  assert.doesNotMatch(card, /\.battery-(track|fill)|\.target-marker/, 'the bar comes from the shared levelMeter');
   assert.match(card, /outline: 3px solid var\(--primary-color\)/);
 });
 test('reading timestamps follow the HA profile clock and diagnostics are quiet actions', async () => {

@@ -1,6 +1,6 @@
 {
   "name": "volvo-cars-card",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "description": "A calm, car-first Home Assistant card for the Volvo integration with Space Hub design.",
   "type": "module",
   "license": "MIT",
@@ -15,7 +15,7 @@
     "check": "npm run typecheck && npm run build && npm test"
   },
   "dependencies": {
-    "@bitosome/ha-card-ui": "https://github.com/bitosome/ha-card-ui/releases/download/v1.4.0/bitosome-ha-card-ui-1.4.0.tgz",
+    "@bitosome/ha-card-ui": "https://github.com/bitosome/ha-card-ui/releases/download/v1.5.0/bitosome-ha-card-ui-1.5.0.tgz",
     "lit": "^3.3.1"
   },
   "devDependencies": {

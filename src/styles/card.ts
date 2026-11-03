@@ -161,38 +161,9 @@ export const cardStyles = css`
     color: var(--family-muted);
     font-weight: 500;
   }
-  .battery-track {
-    position: relative;
-    height: 6px;
+  /* The bar itself is the shared levelMeter(); the card only places it. */
+  .battery-meter {
     margin-top: 7px;
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--primary-text-color) 12%, transparent);
-    overflow: hidden;
-  }
-  .battery-fill {
-    display: block;
-    height: 100%;
-    border-radius: inherit;
-    background: var(--primary-color);
-    transition: width 0.3s;
-  }
-  .battery-fill.high {
-    background: var(--family-success);
-  }
-  .battery-fill.medium {
-    background: var(--family-warning);
-  }
-  .battery-fill.low {
-    background: var(--family-error);
-  }
-  .target-marker {
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    width: 2px;
-    transform: translateX(-1px);
-    background: var(--primary-text-color);
-    opacity: 0.6;
   }
   .status-overview {
     display: flex;
@@ -375,7 +346,7 @@ export const cardStyles = css`
     flex-wrap: wrap;
     justify-content: flex-start;
   }
-  .compact .battery-track {
+  .compact .battery-meter {
     clear: both;
   }
   .compact .range-figure {
