@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.8.0 — 2026-11-03
+
+- Bundle shared UI 1.4.0. The charging status and open-door chips use the shared family chips and tones; unknown plug or opening data shows as an outlined unavailable chip.
+- Missing battery and range readings say Unavailable without a unit instead of a dash.
+- Format the odometer, battery, range and reading timestamps with the Home Assistant profile's language, number format, 12/24-hour clock and time zone.
+- Use the theme's primary colour for focus rings, the family success, warning, error and active aliases for status colours, and the canonical `mdi:lock` icon for a locked car.
+- Find-your-car, climate and charging diagnostic buttons use the shared quiet action style; secondary actions use the shared action colours. Setup and waiting messages use the shared state style.
+- Align spacing and type with the family guide: 12px card padding, a 38px battery reading, 15px section titles and 13px detail text.
+- Preserve vehicle commands, unlock confirmation, battery bands, entity selection and configuration.
+
 ## 0.7.9 — 2026-11-02
 
 - Colour the battery meter by level: green from 60 %, yellow from 20 % to 59 %, red below 20 %. Uses the theme's success, warning and error colours; the band no longer changes to the charging accent while charging.

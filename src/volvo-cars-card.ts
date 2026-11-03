@@ -11,6 +11,11 @@ import {
   componentStyles,
   pendingIndicator,
   notice,
+  asyncState,
+  stateChip,
+  formatHassNumber,
+  formatHassDateTime,
+  UNAVAILABLE_TEXT,
   showEntityMoreInfo,
   UI_ICONS,
 } from './shared/card-primitives';
@@ -222,7 +227,7 @@ export class VolvoCarsCard extends LitElement {
     return list.map(
       (a) =>
         html`<button
-          class="action family-action quiet"
+          class="family-action quiet"
           data-action=${a.key}
           aria-busy=${this.commands.pending?.entity === a.entity ? 'true' : 'false'}
           aria-label=${`${a.label} · ${car.name}${this.commands.pending?.entity === a.entity ? ': Sending request' : ''}`}
@@ -268,7 +273,7 @@ export class VolvoCarsCard extends LitElement {
                       <dt>${d.label}</dt>
                       <dd>
                         <button
-                          class="text-button"
+                          class="family-action quiet diagnostic"
                           aria-haspopup="dialog"
                           @click=${() => this.moreInfo(d.entity)}
                         >
@@ -347,8 +352,9 @@ export class VolvoCarsCard extends LitElement {
             >
               <span>Odometer</span
               ><strong
-                >${odometer!.state}
-                ${odometer!.attributes.unit_of_measurement ?? 'km'}</strong
+                >${formatHassNumber(this.hass, odometer!.state, {
+                  unit: String(odometer!.attributes.unit_of_measurement ?? 'km'),
+                })}</strong
               >
             </button>`
           : nothing
@@ -368,12 +374,9 @@ export class VolvoCarsCard extends LitElement {
                   ${
                     u.at && Number.isFinite(Date.parse(u.at))
                       ? html`<time datetime=${u.at}
-                          >${new Intl.DateTimeFormat(
-                            this.hass?.locale?.language,
-                            { dateStyle: 'short', timeStyle: 'short' },
-                          ).format(new Date(u.at))}</time
+                          >${formatHassDateTime(this.hass, u.at)}</time
                         >`
-                      : 'Unavailable'
+                      : html`<span class="family-unavailable">${UNAVAILABLE_TEXT}</span>`
                   }
                 </dd>
               </div>`,
@@ -386,13 +389,13 @@ export class VolvoCarsCard extends LitElement {
     const car = this.car;
     if (!car || !this.hass)
       return html`<ha-card
-        ><p class="empty">
+        ><div class="empty">
           ${
             car
-              ? 'Waiting for Home Assistant…'
-              : 'Choose a car in the card settings.'
+              ? asyncState({ state: 'loading', message: 'Waiting for Home Assistant…' })
+              : asyncState({ state: 'empty', message: 'Choose a car in the card settings.' })
           }
-        </p></ha-card
+        </div></ha-card
       >`;
     const charge = deriveCharging(this.hass, car),
       openings = deriveOpenings(this.hass, car);
@@ -405,7 +408,7 @@ export class VolvoCarsCard extends LitElement {
     const locking = lock?.state === 'unlocked';
     const lockIcon =
       lock?.state === 'locked'
-        ? 'mdi:lock-outline'
+        ? 'mdi:lock'
         : lock?.state === 'unlocked'
           ? 'mdi:lock-open-variant-outline'
           : 'mdi:lock-alert-outline';
@@ -470,25 +473,31 @@ export class VolvoCarsCard extends LitElement {
                     @click=${() => this.moreInfo(car.entities.battery)}
                     aria-label=${`Battery ${battery === undefined ? 'unavailable' : `${battery} percent`}`}
                   >
-                    <span class="battery-value"
-                      >${battery ?? '—'}<small>%</small></span
-                    ><span class="caption"
+                    ${
+                      battery === undefined
+                        ? html`<span class="battery-value family-unavailable"
+                            >${UNAVAILABLE_TEXT}</span
+                          >`
+                        : html`<span class="battery-value"
+                            >${formatHassNumber(this.hass, battery, { digits: 0 })}<small>%</small></span
+                          >`
+                    }<span class="caption"
                       >Battery${
                         target !== undefined ? ` · Target ${target}%` : ''
                       }</span
                     >
                   </button>
                   <div class="range-figure">
-                    <span
-                      >${
-                        rangeValue !== undefined && rangeValue >= 0
-                          ? Math.round(rangeValue)
-                          : '—'
-                      }
-                      <small
-                        >${range?.attributes.unit_of_measurement ?? 'km'}</small
-                      ></span
-                    ><span class="caption">Estimated range</span>
+                    ${
+                      rangeValue !== undefined && rangeValue >= 0
+                        ? html`<span
+                            >${formatHassNumber(this.hass, rangeValue, { digits: 0 })}
+                            <small
+                              >${range?.attributes.unit_of_measurement ?? 'km'}</small
+                            ></span
+                          >`
+                        : html`<span class="family-unavailable">${UNAVAILABLE_TEXT}</span>`
+                    }<span class="caption">Estimated range</span>
                   </div>
                 </div>
                 <div
@@ -518,44 +527,37 @@ export class VolvoCarsCard extends LitElement {
                   }
                 </div>
                 <div class="status-overview">
-                  <button
-                    class="charging-status ${charge.tone}"
-                    aria-haspopup="dialog"
-                    @click=${() =>
+                  ${stateChip({
+                    label: charge.label,
+                    // Charging keeps the neutral tone plus the card-owned active tint; unknown plug data is unavailable.
+                    tone: charge.tone === 'error' ? 'error' : charge.connection === 'unknown' ? 'unavailable' : 'neutral',
+                    className: `charging-status ${charge.tone}`,
+                    hasPopup: 'dialog',
+                    icon:
+                      charge.tone === 'error'
+                        ? 'mdi:alert-circle-outline'
+                        : charge.active
+                          ? 'mdi:battery-charging-outline'
+                          : charge.connection === 'disconnected'
+                            ? 'mdi:power-plug-off-outline'
+                            : 'mdi:ev-station',
+                    secondary:
+                      charge.active && (charge.power || charge.remaining)
+                        ? [
+                            charge.power,
+                            charge.remaining ? `${charge.remaining} remaining` : undefined,
+                          ]
+                            .filter(Boolean)
+                            .join(' · ')
+                        : undefined,
+                    onClick: () =>
                       this.moreInfo(
                         charge.connection === 'fault' ||
                           charge.connection === 'unknown'
                           ? car.entities.charging_connection
                           : car.entities.charging_status,
-                      )}
-                  >
-                    <span class="status-symbol"
-                      >${icon(
-                        charge.tone === 'error'
-                          ? 'mdi:alert-circle-outline'
-                          : charge.active
-                            ? 'mdi:battery-charging-outline'
-                            : charge.connection === 'disconnected'
-                              ? 'mdi:power-plug-off-outline'
-                              : 'mdi:ev-station',
-                      )}</span
-                    ><span class="status-copy"
-                      ><strong>${charge.label}</strong>${
-                        charge.active && (charge.power || charge.remaining)
-                          ? html`<span
-                              >${[
-                                charge.power,
-                                charge.remaining
-                                  ? `${charge.remaining} remaining`
-                                  : undefined,
-                              ]
-                                .filter(Boolean)
-                                .join(' · ')}</span
-                            >`
-                          : nothing
-                      }</span
-                    >
-                  </button>
+                      ),
+                  })}
                   <div
                     class="openings ${openings.tone} ${
                       openings.open.length || openings.unknown.length
@@ -567,7 +569,9 @@ export class VolvoCarsCard extends LitElement {
                       ${openings.open.map(
                         (o) =>
                           html`<button
-                            class="opening-pill warning"
+                            type="button"
+                            class="family-chip opening-pill"
+                            data-tone="warning"
                             data-opening=${o.key}
                             aria-label=${`${o.label} open`}
                             aria-haspopup="dialog"
@@ -578,18 +582,17 @@ export class VolvoCarsCard extends LitElement {
                       )}
                       ${
                         openings.unknown.length
-                          ? html`<span
-                              class="opening-pill neutral"
-                              title=${openings.detail}
-                            >
-                              ${icon('mdi:help-circle-outline')}
-                              ${
+                          ? stateChip({
+                              label:
                                 !openings.open.length &&
                                 openings.label === 'Openings unavailable'
                                   ? openings.label
-                                  : `${openings.unknown.length} ${openings.unknown.length === 1 ? 'sensor unavailable' : 'sensors unavailable'}`
-                              }
-                            </span>`
+                                  : `${openings.unknown.length} ${openings.unknown.length === 1 ? 'sensor unavailable' : 'sensors unavailable'}`,
+                              icon: 'mdi:help-circle-outline',
+                              tone: 'unavailable',
+                              title: openings.detail,
+                              className: 'opening-pill',
+                            })
                           : nothing
                       }
                     </div>
@@ -597,7 +600,7 @@ export class VolvoCarsCard extends LitElement {
                 </div>
                 <div class="controls">
                   <button
-                    class="action family-action ${locking ? 'primary' : 'secondary'}"
+                    class="family-action ${locking ? 'primary' : 'secondary'}"
                     data-action="lock"
                     aria-haspopup=${locking && !lock?.attributes.code_format && !lock?.attributes.code_required ? 'false' : 'dialog'}
                     title=${`${this.statusLock(car)} — ${lockLabel}`}
@@ -614,7 +617,7 @@ export class VolvoCarsCard extends LitElement {
                   >${
                     climate
                       ? html`<button
-                          class="action family-action secondary"
+                          class="family-action secondary"
                           data-action="climate"
                           aria-label=${`Climate · ${car.name}`}
                           aria-haspopup="dialog"
@@ -624,7 +627,7 @@ export class VolvoCarsCard extends LitElement {
                         </button>`
                       : nothing
                   }<button
-                    class="action family-action secondary"
+                    class="family-action secondary"
                     data-action="disclosure"
                     aria-label=${`Details · ${car.name}`}
                     aria-haspopup="dialog"
@@ -657,8 +660,8 @@ export class VolvoCarsCard extends LitElement {
           : html`<p>This unlocks the car remotely.</p>`}`,
         footerLayout: 'equal',
         footer: this.flow.current === 'unlock' ? html`
-          <button class="action family-action secondary" data-action="cancel-unlock" data-family-initial-focus @click=${() => this.flow.close()}>Cancel</button>
-          <button class="action family-action primary" data-action="confirm-unlock"
+          <button class="family-action secondary" data-action="cancel-unlock" data-family-initial-focus @click=${() => this.flow.close()}>Cancel</button>
+          <button class="family-action primary" data-action="confirm-unlock"
             ?disabled=${this.busy || this.unlockEntity !== car.entities.lock || lock?.state !== 'locked'}
             @click=${() => this.confirmUnlock()}>${icon(lockIcon)}Unlock</button>` : undefined,
       })}`;
@@ -674,4 +677,4 @@ cardWindow.customCards.push({
   description: 'Battery, charging, doors, windows and controls for your Volvo.',
   preview: true,
 });
-console.info('VOLVO CARS CARD 0.7.9');
+console.info('VOLVO CARS CARD 0.8.0');

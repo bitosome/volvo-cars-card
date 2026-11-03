@@ -453,7 +453,7 @@ test('unlocking requires confirmation and cancellation sends nothing', async () 
   const { card, calls } = await fixture();
   assert.equal(
     action(card, 'lock').querySelector('ha-icon').icon,
-    'mdi:lock-outline',
+    'mdi:lock',
   );
   assert.equal(text(action(card, 'lock')), 'Unlock');
   action(card, 'lock').click();
@@ -468,7 +468,7 @@ test('unlocking requires confirmation and cancellation sends nothing', async () 
   await settle(card);
   const confirm = action(card, 'confirm-unlock');
   assert.equal(text(confirm), 'Unlock');
-  assert.equal(confirm.querySelector('ha-icon').icon, 'mdi:lock-outline');
+  assert.equal(confirm.querySelector('ha-icon').icon, 'mdi:lock');
   confirm.click();
   confirm.click();
   await settle(card);
@@ -566,7 +566,7 @@ test('locking an unlocked car sends one command and waits for the requested stat
   assert.equal(action(card, 'lock').querySelector('.family-pending-indicator'), null);
   assert.equal(
     action(card, 'lock').querySelector('ha-icon').icon,
-    'mdi:lock-outline',
+    'mdi:lock',
   );
 });
 test('unknown, unavailable, transitional and jammed locks never send commands', async () => {
@@ -727,7 +727,7 @@ test('odometer is opt-in and appears only when its sensor is available', async (
   const { card } = await fixture({ config: { ...CONFIG, show: ['odometer'] } });
   await openDetails(card);
   assert.match(dialogText(card), /Odometer/);
-  assert.match(dialogText(card), /36057 km/);
+  assert.match(dialogText(card), /36,057 km/);
   await update(card, { 'sensor.volvo_ex30_odometer': entity('unavailable') });
   assert.doesNotMatch(dialogText(card), /Odometer/);
 });
@@ -764,6 +764,66 @@ test('entity overrides route reads and confirmed commands to the configured car'
       data: { entity_id: 'lock.other_car' },
     },
   ]);
+});
+test('status chips use shared family chips and tones', async () => {
+  const { card, calls } = await fixture({
+    state: states('ex30', {
+      'sensor.volvo_ex30_charging_connection_status': entity('connected'),
+      'sensor.volvo_ex30_charging_status': entity('error'),
+      'binary_sensor.volvo_ex30_door_front_left': entity('on'),
+      'binary_sensor.volvo_ex30_sunroof': entity('unavailable'),
+    }),
+  });
+  assert.ok(charge(card).classList.contains('family-chip'));
+  assert.equal(charge(card).dataset.tone, 'error');
+  assert.equal(charge(card).getAttribute('aria-haspopup'), 'dialog');
+  const door = root(card).querySelector('[data-opening="door_front_left"]');
+  assert.ok(door.classList.contains('family-chip'));
+  assert.equal(door.dataset.tone, 'warning');
+  assert.equal(door.getAttribute('aria-label'), 'Front left door open');
+  const unknown = root(card).querySelector('.openings [data-tone="unavailable"]');
+  assert.match(text(unknown), /1 sensor unavailable/);
+  assert.equal(unknown.tagName, 'SPAN');
+  await update(card, {
+    'sensor.volvo_ex30_charging_status': entity('charging'),
+    'sensor.volvo_ex30_charging_power': entity('7400', { unit_of_measurement: 'W' }),
+  });
+  assert.equal(charge(card).dataset.tone, 'neutral');
+  assert.ok(charge(card).classList.contains('active'));
+  assert.match(text(charge(card).querySelector('.family-chip-secondary')), /7\.4 kW/);
+  await update(card, { 'sensor.volvo_ex30_charging_connection_status': entity('unavailable') });
+  assert.equal(charge(card).dataset.tone, 'unavailable');
+  assert.deepEqual(calls, []);
+});
+test('card colours come from family aliases, not private or raw status colours', () => {
+  const styles = customElements.get('volvo-cars-card').styles;
+  const card = styles.map((style) => style.cssText).find((css) => css.includes('.battery-fill'));
+  assert.ok(card);
+  assert.doesNotMatch(card, /--status-|--accent-color|--(success|warning|error)-color|#[0-9a-f]{3,8}\b/i);
+  assert.match(card, /var\(--family-success\)/);
+  assert.match(card, /outline: 3px solid var\(--primary-color\)/);
+});
+test('reading timestamps follow the HA profile clock and diagnostics are quiet actions', async () => {
+  const state = states();
+  state['sensor.volvo_ex30_battery'] = {
+    ...entity('41', { unit_of_measurement: '%' }),
+    last_updated: '2026-11-03T14:05:00Z',
+  };
+  const { card } = await fixture({ state });
+  card.hass = {
+    ...card.hass,
+    locale: { language: 'en-GB', time_format: '12' },
+    config: { time_zone: 'UTC' },
+  };
+  await settle(card);
+  await openDetails(card);
+  const times = [...detailsDialog(card).querySelectorAll('.update-details time')];
+  assert.equal(times.length, 1);
+  assert.match(text(times[0]), /2:05\s?pm/i);
+  assert.ok(detailsDialog(card).querySelector('.update-details .family-unavailable'));
+  const diagnostic = detailsDialog(card).querySelector('.detail-section dd button');
+  assert.ok(diagnostic.classList.contains('family-action'));
+  assert.ok(diagnostic.classList.contains('quiet'));
 });
 test('location opens the existing tracker and is omitted when it is missing', async () => {
   const { card, calls } = await fixture();
@@ -902,7 +962,10 @@ test('charging values retain their units and invalid battery or range values sta
     action(card, 'identity').getAttribute('aria-label'),
     /unavailable/,
   );
-  assert.match(text(root(card).querySelector('.range-figure')), /—/);
+  assert.equal(text(root(card).querySelector('.range-figure > span:first-child')), 'Unavailable');
+  assert.doesNotMatch(text(root(card).querySelector('.range-figure')), /km/);
+  assert.equal(text(root(card).querySelector('.battery-value')), 'Unavailable');
+  assert.ok(root(card).querySelector('.battery-value').classList.contains('family-unavailable'));
   assert.equal(
     root(card).querySelector('[role="meter"]').hasAttribute('aria-valuenow'),
     false,
